@@ -3,7 +3,7 @@ import { Effect, Layer, Stream } from "effect";
 import { LanguageModel } from "effect/unstable/ai";
 
 import { GitContext } from "../../src/domain/CommitMessage.ts";
-import * as CommitAi from "../../src/services/CommitAi.ts";
+import { CommitAi } from "../../src/services/CommitAi.ts";
 
 // The mock LanguageModel provider returns a text part with JSON matching the CommitMessage schema.
 // LanguageModel.make takes provider-level generateText/streamText functions.
@@ -53,6 +53,8 @@ const TestModelLayer = Layer.effect(
     }),
 );
 
+const TestCommitAiLayer = CommitAi.layer.pipe(Layer.provide(TestModelLayer));
+
 const testContext = new GitContext({
     diff: "test diff content",
     branch: "main",
@@ -63,10 +65,11 @@ const testContext = new GitContext({
 describe("CommitAi", () => {
     it.effect("generates a structured commit message", () =>
         Effect.gen(function* () {
-            const msg = yield* CommitAi.generate(testContext);
+            const commitAi = yield* CommitAi;
+            const msg = yield* commitAi.generate(testContext);
             expect(msg.type).toBe("feat");
             expect(msg.subjectLine).toBe("feat(cli): add commit command");
             expect(msg.bullets).toHaveLength(1);
-        }).pipe(Effect.provide(TestModelLayer)),
+        }).pipe(Effect.provide(TestCommitAiLayer)),
     );
 });

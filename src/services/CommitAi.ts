@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 import { LanguageModel } from "effect/unstable/ai";
 
 import { CommitMessage, GitContext } from "../domain/CommitMessage.ts";
@@ -31,24 +31,39 @@ ${context.recentCommits || "(no prior commits)"}
 ## Staged Diff
 ${context.diff}`;
 
-export const generate = Effect.fn("CommitAi.generate")(
-    function* (context: GitContext) {
-        const model = yield* LanguageModel.LanguageModel;
-        const response = yield* model.generateObject({
-            objectName: "commit_message",
-            prompt: [
-                { role: "system" as const, content: systemPrompt },
-                { role: "user" as const, content: buildUserPrompt(context) },
-            ],
-            schema: CommitMessage,
-        });
-        return response.value;
-    },
-    Effect.mapError(
-        (error) =>
-            new CommitAiError({
-                reason: "generation_failed",
-                message: String(error),
-            }),
-    ),
-);
+export class CommitAi extends Context.Service<
+    CommitAi,
+    {
+        readonly generate: (context: GitContext) => Effect.Effect<CommitMessage, CommitAiError>;
+    }
+>()("@overture/CommitAi") {
+    static layer = Layer.effect(
+        CommitAi,
+        Effect.gen(function* () {
+            const model = yield* LanguageModel.LanguageModel;
+
+            const generate = Effect.fn("CommitAi.generate")(
+                function* (context: GitContext) {
+                    const response = yield* model.generateObject({
+                        objectName: "commit_message",
+                        prompt: [
+                            { role: "system" as const, content: systemPrompt },
+                            { role: "user" as const, content: buildUserPrompt(context) },
+                        ],
+                        schema: CommitMessage,
+                    });
+                    return response.value;
+                },
+                Effect.mapError(
+                    (error) =>
+                        new CommitAiError({
+                            reason: "generation_failed",
+                            message: String(error),
+                        }),
+                ),
+            );
+
+            return CommitAi.of({ generate });
+        }),
+    );
+}
