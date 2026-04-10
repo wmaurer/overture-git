@@ -11,7 +11,7 @@ export const commit = Command.make(
     {
         model: Flag.string("model").pipe(
             Flag.withAlias("m"),
-            Flag.withDefault("claude-sonnet-4-20250514"),
+            Flag.withDefault("claude-haiku-4-5-20251001"),
             Flag.withDescription("Anthropic model to use"),
         ),
     },
