@@ -1,28 +1,28 @@
 {
-  "$schema": "https://raw.githubusercontent.com/Effect-TS/language-service/refs/heads/main/schema.json",
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleDetection": "force",
-    "verbatimModuleSyntax": true,
-    "rewriteRelativeImportExtensions": true,
-    "erasableSyntaxOnly": true,
-    "strict": true,
-    "exactOptionalPropertyTypes": true,
-    "noUnusedLocals": true,
-    "noImplicitOverride": true,
-    "incremental": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "declaration": true,
-    "skipLibCheck": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "plugins": [
-      {
-        "name": "@effect/language-service"
-      }
-    ]
-  },
-  "include": ["src"]
+    "$schema": "https://raw.githubusercontent.com/Effect-TS/language-service/refs/heads/main/schema.json",
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleDetection": "force",
+        "verbatimModuleSyntax": true,
+        "rewriteRelativeImportExtensions": true,
+        "erasableSyntaxOnly": true,
+        "strict": true,
+        "exactOptionalPropertyTypes": true,
+        "noUnusedLocals": true,
+        "noImplicitOverride": true,
+        "incremental": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "declaration": true,
+        "skipLibCheck": true,
+        "outDir": "dist",
+        "rootDir": "src",
+        "plugins": [
+            {
+                "name": "@effect/language-service"
+            }
+        ]
+    },
+    "include": ["src"]
 }
