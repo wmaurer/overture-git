@@ -1,7 +1,8 @@
-import { Effect } from "effect"
-import { LanguageModel } from "effect/unstable/ai"
-import { CommitAiError } from "../domain/errors.ts"
-import { CommitMessage, GitContext } from "../domain/CommitMessage.ts"
+import { Effect } from "effect";
+import { LanguageModel } from "effect/unstable/ai";
+
+import { CommitMessage, GitContext } from "../domain/CommitMessage.ts";
+import { CommitAiError } from "../domain/errors.ts";
 
 const systemPrompt = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
 
@@ -12,9 +13,11 @@ Rules:
 - Group related changes into concise bullet points
 - Do NOT mention AI, Claude, or auto-generation
 - Common types: feat, fix, refactor, chore, docs, test, perf, style
-- Scope is optional — use it when changes are focused on one area`
+- Scope is optional — use it when changes are focused on one area`;
 
-const buildUserPrompt = (context: GitContext): string => `Analyze the following git context and generate a commit message.
+const buildUserPrompt = (
+    context: GitContext,
+): string => `Analyze the following git context and generate a commit message.
 
 ## Current Branch
 ${context.branch}
@@ -26,11 +29,11 @@ ${context.status}
 ${context.recentCommits || "(no prior commits)"}
 
 ## Staged Diff
-${context.diff}`
+${context.diff}`;
 
 export const generate = Effect.fn("CommitAi.generate")(
     function* (context: GitContext) {
-        const model = yield* LanguageModel.LanguageModel
+        const model = yield* LanguageModel.LanguageModel;
         const response = yield* model.generateObject({
             objectName: "commit_message",
             prompt: [
@@ -38,8 +41,8 @@ export const generate = Effect.fn("CommitAi.generate")(
                 { role: "user" as const, content: buildUserPrompt(context) },
             ],
             schema: CommitMessage,
-        })
-        return response.value
+        });
+        return response.value;
     },
     Effect.mapError(
         (error) =>
@@ -48,4 +51,4 @@ export const generate = Effect.fn("CommitAi.generate")(
                 message: String(error),
             }),
     ),
-)
+);

@@ -1,9 +1,10 @@
-import { Console, Effect } from "effect"
-import { Command, Flag, Prompt } from "effect/unstable/cli"
-import { AnthropicLanguageModel } from "@effect/ai-anthropic"
-import { Git } from "../services/Git.ts"
-import { GitContext } from "../domain/CommitMessage.ts"
-import * as CommitAi from "../services/CommitAi.ts"
+import { AnthropicLanguageModel } from "@effect/ai-anthropic";
+import { Console, Effect } from "effect";
+import { Command, Flag, Prompt } from "effect/unstable/cli";
+
+import { GitContext } from "../domain/CommitMessage.ts";
+import * as CommitAi from "../services/CommitAi.ts";
+import { Git } from "../services/Git.ts";
 
 export const commit = Command.make(
     "commit",
@@ -16,7 +17,7 @@ export const commit = Command.make(
     },
     (config) =>
         Effect.gen(function* () {
-            const git = yield* Git
+            const git = yield* Git;
 
             // 1. Gather context in parallel
             const [diff, branch, status, recentCommits] = yield* Effect.all([
@@ -24,34 +25,34 @@ export const commit = Command.make(
                 git.branch(),
                 git.status(),
                 git.log(10),
-            ])
+            ]);
 
-            const context = new GitContext({ diff, branch, status, recentCommits })
+            const context = new GitContext({ diff, branch, status, recentCommits });
 
             // 2. Generate commit message
-            yield* Console.log("Generating commit message...")
-            const modelLayer = AnthropicLanguageModel.model(config.model)
-            const msg = yield* CommitAi.generate(context).pipe(Effect.provide(modelLayer))
+            yield* Console.log("Generating commit message...");
+            const modelLayer = AnthropicLanguageModel.model(config.model);
+            const msg = yield* CommitAi.generate(context).pipe(Effect.provide(modelLayer));
 
             // 3. Display formatted message
-            yield* Console.log("")
-            yield* Console.log(msg.subjectLine)
-            yield* Console.log("")
-            yield* Console.log(msg.body)
-            yield* Console.log("")
+            yield* Console.log("");
+            yield* Console.log(msg.subjectLine);
+            yield* Console.log("");
+            yield* Console.log(msg.body);
+            yield* Console.log("");
 
             // 4. Confirm
-            const confirmed = yield* Prompt.confirm({ message: "Commit with this message?" })
+            const confirmed = yield* Prompt.confirm({ message: "Commit with this message?" });
             if (!confirmed) {
-                yield* Console.log("Cancelled.")
-                return
+                yield* Console.log("Cancelled.");
+                return;
             }
 
             // 5. Commit
-            yield* git.commit(msg.subjectLine, msg.body)
-            yield* Console.log("Committed.")
+            yield* git.commit(msg.subjectLine, msg.body);
+            yield* Console.log("Committed.");
         }).pipe(
             Effect.catchTag("GitError", (error) => Console.error(error.message)),
             Effect.catchTag("CommitAiError", (error) => Console.error(`AI error: ${error.message}`)),
         ),
-).pipe(Command.withDescription("Generate and create a conventional commit from staged changes"))
+).pipe(Command.withDescription("Generate and create a conventional commit from staged changes"));

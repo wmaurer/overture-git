@@ -1,4 +1,4 @@
-import { Option, Schema } from "effect"
+import { Option, Schema } from "effect";
 
 export class CommitMessage extends Schema.Class<CommitMessage>("CommitMessage")({
     type: Schema.Literals(["feat", "fix", "refactor", "chore", "docs", "test", "perf", "style"]),
@@ -10,16 +10,16 @@ export class CommitMessage extends Schema.Class<CommitMessage>("CommitMessage")(
         const scopePart = Option.match(this.scope, {
             onNone: () => "",
             onSome: (s) => `(${s})`,
-        })
-        return `${this.type}${scopePart}: ${this.subject}`
+        });
+        return `${this.type}${scopePart}: ${this.subject}`;
     }
 
     get body(): string {
-        return this.bullets.map((b) => `- ${b}`).join("\n")
+        return this.bullets.map((b) => `- ${b}`).join("\n");
     }
 
     get fullMessage(): string {
-        return `${this.subjectLine}\n\n${this.body}`
+        return `${this.subjectLine}\n\n${this.body}`;
     }
 }
 
