@@ -10,19 +10,23 @@
     "scripts": {
         "prepare": "effect-language-service patch",
         "typecheck": "tsc --noEmit",
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "vitest run",
         "lint": "oxlint",
         "fmt": "oxfmt .",
         "fmt:check": "oxfmt --check ."
     },
     "dependencies": {
+        "@effect/ai-anthropic": "4.0.0-beta.46",
+        "@effect/platform-node": "4.0.0-beta.46",
         "effect": "4.0.0-beta.46"
     },
     "devDependencies": {
         "@effect/language-service": "^0.85.1",
+        "@effect/vitest": "4.0.0-beta.46",
         "oxfmt": "^0.44.0",
         "oxlint": "^1.59.0",
-        "typescript": "^6.0.2"
+        "typescript": "^6.0.2",
+        "vitest": "^4.1.4"
     },
     "packageManager": "pnpm@10.32.1"
 }
