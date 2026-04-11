@@ -38,6 +38,11 @@ export const commit = Command.make(
             Flag.withDefault("claude-haiku-4-5-20251001"),
             Flag.withDescription("Anthropic model to use"),
         ),
+        nonInteractive: Flag.boolean("non-interactive").pipe(
+            Flag.withAlias("n"),
+            Flag.withDefault(false),
+            Flag.withDescription("Generate and commit without prompting"),
+        ),
     },
     (config) =>
         Effect.gen(function* () {
@@ -64,6 +69,13 @@ export const commit = Command.make(
             const initial = yield* chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage });
             let current = { subject: initial.value.subjectLine, body: initial.value.body };
             yield* displayRaw(current);
+
+            // Non-interactive: commit immediately and exit
+            if (config.nonInteractive) {
+                yield* git.commit(current.subject, current.body);
+                yield* Console.log("Committed.");
+                return;
+            }
 
             // 4. Action loop
             while (true) {

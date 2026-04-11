@@ -12,6 +12,8 @@
     },
     "scripts": {
         "prepare": "effect-language-service patch",
+        "build": "tsc",
+        "dev": "tsc --watch",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
         "lint": "oxlint",
