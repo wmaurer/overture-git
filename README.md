@@ -8,6 +8,7 @@ Git workflow tools powered by AI. `ogit` generates conventional commit messages 
 - **Intelligent auto-staging** — when nothing is staged, AI triages files by name, filters out binaries and generated files, analyzes diffs for relevance, and lets you exclude unrelated changes
 - **Interactive workflow** — review the generated message, then commit, edit, regenerate (with optional feedback), or cancel
 - **Non-interactive mode** — automate commits in scripts and AI agent workflows with `--non-interactive`
+- **Custom instructions** — guide the AI with your own rules via `OGIT_INSTRUCTIONS` (e.g. language, tone, extra conventions)
 - **Model selection** — choose any Anthropic model with `--model`
 
 ## Installation
@@ -69,6 +70,16 @@ ogit commit -n
 ```
 
 Generates a commit message and commits immediately without prompting. If nothing is staged, all changes are added (`git add -A`) before generating. Useful for scripts and AI agent integrations.
+
+### Custom instructions
+
+Provide extra guidance to the AI by setting `OGIT_INSTRUCTIONS`:
+
+```bash
+export OGIT_INSTRUCTIONS="Write the commit message in Swiss Standard German. Never use Eszett (ß), always use Umlauts (ä, ö, ü)."
+```
+
+The value is appended to the system prompt, so write it as a direct instruction (imperative, concise). Multi-line values work if your shell supports them.
 
 ### Model selection
 
