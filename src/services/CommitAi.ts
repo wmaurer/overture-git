@@ -56,7 +56,7 @@ const buildAnalysisPrompt = (diff: string, branch: string): string =>
 export class CommitAi extends Context.Service<
     CommitAi,
     {
-        readonly createChat: (context: GitContext) => Effect.Effect<Chat.Service, CommitAiError>;
+        readonly createChat: (context: GitContext, instructions?: string) => Effect.Effect<Chat.Service, CommitAiError>;
         readonly triageFiles: (
             files: ReadonlyArray<string>,
             branch: string,
@@ -71,10 +71,13 @@ export class CommitAi extends Context.Service<
         CommitAi,
         CommitAi.of({
             createChat: Effect.fn("CommitAi.createChat")(
-                function* (context: GitContext) {
+                function* (context: GitContext, instructions?: string) {
+                    const system = instructions
+                        ? `${systemPrompt}\n\n## Additional Instructions\n${instructions}`
+                        : systemPrompt;
                     return yield* Chat.fromPrompt([
-                        { role: "system" as const, content: systemPrompt },
-                        { role: "user" as const, content: buildUserPrompt(context) },
+                        { role: "system", content: system },
+                        { role: "user", content: buildUserPrompt(context) },
                     ]);
                 },
                 Effect.mapError(
@@ -89,8 +92,8 @@ export class CommitAi extends Context.Service<
             triageFiles: Effect.fn("CommitAi.triageFiles")(
                 function* (files: ReadonlyArray<string>, branch: string) {
                     const chat = yield* Chat.fromPrompt([
-                        { role: "system" as const, content: triageSystemPrompt },
-                        { role: "user" as const, content: buildTriagePrompt(files, branch) },
+                        { role: "system", content: triageSystemPrompt },
+                        { role: "user", content: buildTriagePrompt(files, branch) },
                     ]);
                     const result = yield* chat.generateObject({ objectName: "file_triage", prompt: [], schema: FileTriage });
                     return result.value;
@@ -103,8 +106,8 @@ export class CommitAi extends Context.Service<
             analyseFiles: Effect.fn("CommitAi.analyseFiles")(
                 function* (diff: string, branch: string) {
                     const chat = yield* Chat.fromPrompt([
-                        { role: "system" as const, content: analysisSystemPrompt },
-                        { role: "user" as const, content: buildAnalysisPrompt(diff, branch) },
+                        { role: "system", content: analysisSystemPrompt },
+                        { role: "user", content: buildAnalysisPrompt(diff, branch) },
                     ]);
                     const result = yield* chat.generateObject({ objectName: "file_analysis", prompt: [], schema: FileAnalysis });
                     return result.value;

@@ -156,11 +156,14 @@ export const commit = Command.make(
                 git.status(),
                 git.log(10),
             ]);
+            const instructions = yield* Config.string("OGIT_INSTRUCTIONS").pipe(
+                Config.orElse(() => Config.succeed("")),
+            );
 
             const context = new GitContext({ diff, branch, status, recentCommits });
 
             // 2. Create chat session
-            const chat = yield* commitAi.createChat(context);
+            const chat = yield* commitAi.createChat(context, instructions || undefined);
 
             // 3. Initial generation
             yield* Console.log("Generating commit message...");
