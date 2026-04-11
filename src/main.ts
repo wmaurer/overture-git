@@ -8,7 +8,7 @@ import { Git } from "./services/Git.ts";
 
 const mainLayer = Git.layer.pipe(Layer.provideMerge(NodeServices.layer));
 
-Command.make("overture").pipe(
+Command.make("ogit").pipe(
     Command.withDescription("Git workflow tools powered by AI"),
     Command.withSubcommands([commit]),
     Command.run({ version: "1.0.0" }),
