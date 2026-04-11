@@ -1,6 +1,7 @@
-import { AnthropicLanguageModel } from "@effect/ai-anthropic";
-import { Console, Effect, Layer } from "effect";
+import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
+import { Config, Console, Effect, Layer } from "effect";
 import { Command, Flag, Prompt } from "effect/unstable/cli";
+import { FetchHttpClient } from "effect/unstable/http";
 
 import { CommitMessage, GitContext } from "../domain/CommitMessage.ts";
 import { parseEditedMessage } from "../domain/parseEditedMessage.ts";
@@ -118,7 +119,15 @@ export const commit = Command.make(
                 yield* displayRaw(current);
             }
         }).pipe(
-            Effect.provide(Layer.mergeAll(CommitAi.layer, Editor.layer, AnthropicLanguageModel.model(config.model))),
+            Effect.provide(
+                Layer.mergeAll(CommitAi.layer, Editor.layer, AnthropicLanguageModel.model(config.model)).pipe(
+                    Layer.provide(
+                        AnthropicClient.layerConfig({
+                            apiKey: Config.redacted("OGIT_API_KEY"),
+                        }).pipe(Layer.provide(FetchHttpClient.layer)),
+                    ),
+                ),
+            ),
             Effect.catchTag("GitError", (error) => Console.error(error.message)),
             Effect.catchTag("CommitAiError", (error) => Console.error(`AI error: ${error.message}`)),
             Effect.catchTag("EditorError", (error) => Console.error(`Editor error: ${error.message}`)),

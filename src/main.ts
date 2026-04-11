@@ -1,19 +1,12 @@
 #!/usr/bin/env node
-import { AnthropicClient } from "@effect/ai-anthropic";
 import { NodeServices, NodeRuntime } from "@effect/platform-node";
-import { Config, Effect, Layer } from "effect";
+import { Effect, Layer } from "effect";
 import { Command } from "effect/unstable/cli";
-import { FetchHttpClient } from "effect/unstable/http";
 
 import { commit } from "./commands/commit.ts";
 import { Git } from "./services/Git.ts";
 
-const mainLayer = Layer.mergeAll(
-    Git.layer,
-    AnthropicClient.layerConfig({
-        apiKey: Config.redacted("ANTHROPIC_API_KEY"),
-    }).pipe(Layer.provide(FetchHttpClient.layer)),
-).pipe(Layer.provideMerge(NodeServices.layer));
+const mainLayer = Git.layer.pipe(Layer.provideMerge(NodeServices.layer));
 
 Command.make("overture").pipe(
     Command.withDescription("Git workflow tools powered by AI"),
