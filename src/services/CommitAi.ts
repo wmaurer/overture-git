@@ -5,9 +5,11 @@ import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
 import { GitContext } from "../domain/CommitMessage.ts";
 import { CommitAiError } from "../domain/errors.ts";
 
-const systemPrompt = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
+const buildSystemPrompt = (instructions?: string): string => {
+    const customRule = instructions ? `\n- ${instructions}` : "";
+    return `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
 
-Rules:
+Rules:${customRule}
 - Use conventional commit format: type(scope): short description
 - Subject must be imperative mood, max 72 characters, lowercase
 - Bullets should summarize WHAT changed and WHY, not HOW
@@ -15,6 +17,7 @@ Rules:
 - Do NOT mention AI, Claude, or auto-generation
 - Common types: feat, fix, refactor, chore, docs, test, perf, style
 - Scope is optional — use it when changes are focused on one area`;
+};
 
 const buildUserPrompt = (
     context: GitContext,
@@ -72,11 +75,8 @@ export class CommitAi extends Context.Service<
         CommitAi.of({
             createChat: Effect.fn("CommitAi.createChat")(
                 function* (context: GitContext, instructions?: string) {
-                    const system = instructions
-                        ? `${systemPrompt}\n\n## Additional Instructions\n${instructions}`
-                        : systemPrompt;
                     return yield* Chat.fromPrompt([
-                        { role: "system", content: system },
+                        { role: "system", content: buildSystemPrompt(instructions) },
                         { role: "user", content: buildUserPrompt(context) },
                     ]);
                 },
