@@ -5,6 +5,7 @@ Git workflow tools powered by AI. `ogit` generates conventional commit messages 
 ## Features
 
 - **AI-powered commit messages** — analyzes your staged diff, branch name, status, and recent commits to generate meaningful conventional commit messages
+- **Intelligent auto-staging** — when nothing is staged, AI triages files by name, filters out binaries and generated files, analyzes diffs for relevance, and lets you exclude unrelated changes
 - **Interactive workflow** — review the generated message, then commit, edit, regenerate (with optional feedback), or cancel
 - **Non-interactive mode** — automate commits in scripts and AI agent workflows with `--non-interactive`
 - **Model selection** — choose any Anthropic model with `--model`
@@ -34,14 +35,26 @@ export OGIT_API_KEY=sk-ant-...
 
 ### Interactive mode (default)
 
-Stage your changes, then run:
+Just run:
+
+```bash
+ogit commit
+```
+
+If you have staged changes, ogit generates a commit message from them. If nothing is staged, ogit **auto-stages** your changes using a two-phase AI workflow:
+
+1. **Triage** — AI classifies unstaged files by name, filtering out generated/output files (e.g. `dist/`, lock files)
+2. **Analysis** — AI reads the diffs of remaining files and groups them by relevance to the current branch
+3. **Review** — if some files seem unrelated, ogit lists them and asks whether to exclude them from this commit
+
+You can also stage manually first if you prefer:
 
 ```bash
 git add -p
 ogit commit
 ```
 
-ogit will generate a commit message and present a menu:
+Once changes are staged, ogit generates a commit message and presents a menu:
 
 - **Commit** — accept the message and commit
 - **Edit** — open the message in your `$EDITOR` for manual tweaks
@@ -55,7 +68,7 @@ ogit will generate a commit message and present a menu:
 ogit commit -n
 ```
 
-Generates a commit message and commits immediately without prompting. Useful for scripts and AI agent integrations.
+Generates a commit message and commits immediately without prompting. If nothing is staged, all changes are added (`git add -A`) before generating. Useful for scripts and AI agent integrations.
 
 ### Model selection
 
