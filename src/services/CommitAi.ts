@@ -1,7 +1,8 @@
 import { Context, Effect, Layer } from "effect";
 import { Chat } from "effect/unstable/ai";
 
-import { FileAnalysis, FileTriage, GitContext } from "../domain/CommitMessage.ts";
+import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
+import { GitContext } from "../domain/CommitMessage.ts";
 import { CommitAiError } from "../domain/errors.ts";
 
 const systemPrompt = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.

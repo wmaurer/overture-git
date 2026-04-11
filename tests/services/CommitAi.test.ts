@@ -2,7 +2,8 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Stream } from "effect";
 import { LanguageModel } from "effect/unstable/ai";
 
-import { CommitMessage, FileAnalysis, FileTriage, GitContext } from "../../src/domain/CommitMessage.ts";
+import { CommitMessage, GitContext } from "../../src/domain/CommitMessage.ts";
+import { FileAnalysis, FileTriage } from "../../src/domain/FileAnalysis.ts";
 import { CommitAi } from "../../src/services/CommitAi.ts";
 
 const makeCommitJson = (overrides: Partial<{ type: string; scope: string; subject: string; bullets: string[] }> = {}) =>

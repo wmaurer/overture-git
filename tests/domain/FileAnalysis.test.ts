@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Schema } from "effect";
 
-import { FileAnalysis, FileTriage } from "../../src/domain/CommitMessage.ts";
+import { FileAnalysis, FileTriage } from "../../src/domain/FileAnalysis.ts";
 
 describe("FileTriage", () => {
     it("parses valid triage response", () => {
