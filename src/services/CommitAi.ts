@@ -37,10 +37,10 @@ export class CommitAi extends Context.Service<
         readonly createChat: (context: GitContext) => Effect.Effect<Chat.Service, CommitAiError>;
     }
 >()("@overture/CommitAi") {
-    static layer = Layer.effect(
+    static layer = Layer.succeed(
         CommitAi,
-        Effect.gen(function* () {
-            const createChat = Effect.fn("CommitAi.createChat")(
+        CommitAi.of({
+            createChat: Effect.fn("CommitAi.createChat")(
                 function* (context: GitContext) {
                     return yield* Chat.fromPrompt([
                         { role: "system" as const, content: systemPrompt },
@@ -54,9 +54,7 @@ export class CommitAi extends Context.Service<
                             message: String(error),
                         }),
                 ),
-            );
-
-            return CommitAi.of({ createChat });
+            ),
         }),
     );
 }

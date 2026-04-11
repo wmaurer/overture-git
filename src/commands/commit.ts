@@ -92,12 +92,7 @@ export const commit = Command.make(
                 }
             }
         }).pipe(
-            Effect.provide(
-                Layer.merge(
-                    CommitAi.layer,
-                    AnthropicLanguageModel.model(config.model),
-                ),
-            ),
+            Effect.provide(Layer.merge(CommitAi.layer, AnthropicLanguageModel.model(config.model))),
             Effect.catchTag("GitError", (error) => Console.error(error.message)),
             Effect.catchTag("CommitAiError", (error) => Console.error(`AI error: ${error.message}`)),
         ),

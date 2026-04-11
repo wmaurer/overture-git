@@ -29,9 +29,10 @@ const TestModelLayer = Layer.effect(
             }
 
             // On second call, return a different message to prove regeneration works
-            const json = callCount === 1
-                ? makeCommitJson()
-                : makeCommitJson({ type: "fix", subject: "resolve commit issue", scope: undefined });
+            const json =
+                callCount === 1
+                    ? makeCommitJson()
+                    : makeCommitJson({ type: "fix", subject: "resolve commit issue", scope: undefined });
 
             return Effect.succeed([
                 { type: "text" as const, text: json },
