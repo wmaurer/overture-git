@@ -1,3 +1,7 @@
+## Committing
+
+Never use `git commit` directly. After staging files with `git add`, always use `ogit commit -n` to create commits. This generates AI-powered commit messages from the staged diff in non-interactive mode.
+
 ## Reference Repositories
 
 The `.references/` directory lives in the **main project root** (not in worktrees).
