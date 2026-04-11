@@ -11,6 +11,12 @@ export class Git extends Context.Service<
         readonly log: (n: number) => Effect.Effect<string, GitError>;
         readonly branch: () => Effect.Effect<string, GitError>;
         readonly commit: (subject: string, body: string) => Effect.Effect<void, GitError>;
+        readonly addFiles: (paths: ReadonlyArray<string>) => Effect.Effect<void, GitError>;
+        readonly addAll: () => Effect.Effect<void, GitError>;
+        readonly diffFiles: (paths: ReadonlyArray<string>) => Effect.Effect<string, GitError>;
+        readonly intentToAdd: (paths: ReadonlyArray<string>) => Effect.Effect<void, GitError>;
+        readonly resetFiles: (paths: ReadonlyArray<string>) => Effect.Effect<void, GitError>;
+        readonly numstat: () => Effect.Effect<string, GitError>;
     }
 >()("@overture/Git") {
     static layer = Layer.effect(
@@ -57,7 +63,35 @@ export class Git extends Context.Service<
                 yield* run(["commit", "-m", subject, "-m", body]);
             });
 
-            return Git.of({ diffStaged, status, log, branch, commit });
+            const addFiles = Effect.fn("Git.addFiles")(function* (paths: ReadonlyArray<string>) {
+                if (paths.length === 0) return;
+                yield* run(["add", ...paths]);
+            });
+
+            const addAll = Effect.fn("Git.addAll")(function* () {
+                yield* run(["add", "-A"]);
+            });
+
+            const diffFiles = Effect.fn("Git.diffFiles")(function* (paths: ReadonlyArray<string>) {
+                if (paths.length === 0) return "";
+                return yield* run(["diff", ...paths]);
+            });
+
+            const intentToAdd = Effect.fn("Git.intentToAdd")(function* (paths: ReadonlyArray<string>) {
+                if (paths.length === 0) return;
+                yield* run(["add", "-N", ...paths]);
+            });
+
+            const resetFiles = Effect.fn("Git.resetFiles")(function* (paths: ReadonlyArray<string>) {
+                if (paths.length === 0) return;
+                yield* run(["reset", "--", ...paths]);
+            });
+
+            const numstat = Effect.fn("Git.numstat")(function* () {
+                return yield* run(["diff", "--numstat"]);
+            });
+
+            return Git.of({ diffStaged, status, log, branch, commit, addFiles, addAll, diffFiles, intentToAdd, resetFiles, numstat });
         }),
     );
 }
