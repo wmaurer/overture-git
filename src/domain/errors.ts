@@ -9,3 +9,8 @@ export class CommitAiError extends Schema.TaggedErrorClass<CommitAiError>()("Com
     reason: Schema.Literals(["generation_failed", "invalid_response"]),
     message: Schema.String,
 }) {}
+
+export class EditorError extends Schema.TaggedErrorClass<EditorError>()("EditorError", {
+    reason: Schema.Literals(["editor_failed"]),
+    message: Schema.String,
+}) {}
