@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { AnthropicClient } from "@effect/ai-anthropic";
 import { NodeServices, NodeRuntime } from "@effect/platform-node";
 import { Config, Effect, Layer } from "effect";
