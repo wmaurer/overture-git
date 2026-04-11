@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect";
-import { Chat } from "effect/unstable/ai";
+import { Chat, LanguageModel } from "effect/unstable/ai";
 
 import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
 import { GitContext } from "../domain/CommitMessage.ts";
@@ -60,11 +60,11 @@ export class CommitAi extends Context.Service<
         readonly triageFiles: (
             files: ReadonlyArray<string>,
             branch: string,
-        ) => Effect.Effect<FileTriage, CommitAiError>;
+        ) => Effect.Effect<FileTriage, CommitAiError, LanguageModel.LanguageModel>;
         readonly analyseFiles: (
             diff: string,
             branch: string,
-        ) => Effect.Effect<FileAnalysis, CommitAiError>;
+        ) => Effect.Effect<FileAnalysis, CommitAiError, LanguageModel.LanguageModel>;
     }
 >()("@overture/CommitAi") {
     static layer = Layer.succeed(

@@ -34,82 +34,84 @@ const displayRaw = (m: { subject: string; body: string }) =>
         yield* Console.log("");
     });
 
-const autoStage = (git: Git["Type"], commitAi: CommitAi["Type"]) =>
-    Effect.gen(function* () {
-        // 1. Get file list and branch
-        const [status, branch] = yield* Effect.all([git.status(), git.branch()]);
-        const files = parseStatus(status);
+const autoStage = Effect.gen(function* () {
+    const git = yield* Git;
+    const commitAi = yield* CommitAi;
 
-        if (files.length === 0) {
-            return yield* new GitError({ reason: "nothing_staged", message: "No changes to commit." });
+    // 1. Get file list and branch
+    const [status, branch] = yield* Effect.all([git.status(), git.branch()]);
+    const files = parseStatus(status);
+
+    if (files.length === 0) {
+        return yield* new GitError({ reason: "nothing_staged", message: "No changes to commit." });
+    }
+
+    // 2. AI triage — classify files by name
+    yield* Console.log("Analysing files...");
+    const triage = yield* commitAi.triageFiles(files, branch);
+
+    if (triage.analyse.length === 0) {
+        return yield* new GitError({
+            reason: "nothing_staged",
+            message: "No files suitable for committing.",
+        });
+    }
+
+    // 3. Filter out binary files
+    yield* git.intentToAdd(triage.analyse);
+    const numstatOutput = yield* git.numstat();
+    yield* git.resetFiles(triage.analyse);
+
+    const binaryFiles = parseBinaryFiles(numstatOutput);
+    const textFiles = triage.analyse.filter((f: string) => !binaryFiles.includes(f));
+
+    if (textFiles.length === 0) {
+        return yield* new GitError({
+            reason: "nothing_staged",
+            message: "Only binary/output files found — nothing to analyse.",
+        });
+    }
+
+    // 4. Get diffs for text files
+    yield* git.intentToAdd(textFiles);
+    const diff = yield* git.diffFiles(textFiles);
+    yield* git.resetFiles(textFiles);
+
+    // 5. AI analysis — group by relevance
+    const analysis = yield* commitAi.analyseFiles(diff, branch);
+
+    // 6. Stage based on analysis
+    if (analysis.allRelevant) {
+        yield* git.addFiles(textFiles);
+    } else {
+        // Show irrelevant files
+        yield* Console.log("");
+        yield* Console.log("These files seem unrelated to the main changes:");
+        for (const file of analysis.irrelevant) {
+            yield* Console.log(`  - ${file.path} (${file.reason})`);
         }
+        yield* Console.log("");
 
-        // 2. AI triage — classify files by name
-        yield* Console.log("Analysing files...");
-        const triage = yield* commitAi.triageFiles(files, branch);
+        const exclude = yield* Prompt.confirm({
+            message: "Exclude them from this commit?",
+        });
 
-        if (triage.analyse.length === 0) {
-            return yield* new GitError({
-                reason: "nothing_staged",
-                message: "No files suitable for committing.",
-            });
-        }
-
-        // 3. Filter out binary files
-        yield* git.intentToAdd(triage.analyse);
-        const numstatOutput = yield* git.numstat();
-        yield* git.resetFiles(triage.analyse);
-
-        const binaryFiles = parseBinaryFiles(numstatOutput);
-        const textFiles = triage.analyse.filter((f) => !binaryFiles.includes(f));
-
-        if (textFiles.length === 0) {
-            return yield* new GitError({
-                reason: "nothing_staged",
-                message: "Only binary/output files found — nothing to analyse.",
-            });
-        }
-
-        // 4. Get diffs for text files
-        yield* git.intentToAdd(textFiles);
-        const diff = yield* git.diffFiles(textFiles);
-        yield* git.resetFiles(textFiles);
-
-        // 5. AI analysis — group by relevance
-        const analysis = yield* commitAi.analyseFiles(diff, branch);
-
-        // 6. Stage based on analysis
-        if (analysis.allRelevant) {
-            yield* git.addFiles(textFiles);
+        if (exclude) {
+            yield* git.addFiles(analysis.relevant);
         } else {
-            // Show irrelevant files
-            yield* Console.log("");
-            yield* Console.log("These files seem unrelated to the main changes:");
-            for (const file of analysis.irrelevant) {
-                yield* Console.log(`  - ${file.path} (${file.reason})`);
-            }
-            yield* Console.log("");
-
-            const exclude = yield* Prompt.confirm({
-                message: "Exclude them from this commit?",
-            });
-
-            if (exclude) {
-                yield* git.addFiles(analysis.relevant);
-            } else {
-                yield* git.addFiles(textFiles);
-            }
+            yield* git.addFiles(textFiles);
         }
+    }
 
-        // Log skipped files if any
-        if (triage.skip.length > 0) {
-            yield* Console.log("");
-            yield* Console.log("Skipped (output/generated files):");
-            for (const file of triage.skip) {
-                yield* Console.log(`  - ${file.path} (${file.reason})`);
-            }
+    // Log skipped files if any
+    if (triage.skip.length > 0) {
+        yield* Console.log("");
+        yield* Console.log("Skipped (output/generated files):");
+        for (const file of triage.skip) {
+            yield* Console.log(`  - ${file.path} (${file.reason})`);
         }
-    });
+    }
+});
 
 export const commit = Command.make(
     "commit",
@@ -143,7 +145,7 @@ export const commit = Command.make(
                 if (config.nonInteractive) {
                     yield* git.addAll();
                 } else {
-                    yield* autoStage(git, commitAi);
+                    yield* autoStage;
                 }
             }
 

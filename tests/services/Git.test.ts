@@ -1,4 +1,4 @@
-import { describe, expect, it } from "@effect/vitest";
+import { describe, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { NodeServices } from "@effect/platform-node";
 
