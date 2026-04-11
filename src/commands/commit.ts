@@ -83,6 +83,7 @@ export const commit = Command.make(
                 if (action === "edit") {
                     const edited = yield* editor.open(`${current.subject}\n\n${current.body}`);
                     current = parseEditedMessage(edited);
+                    yield* Console.log("Message updated.");
                     yield* displayRaw(current);
                     continue;
                 }
