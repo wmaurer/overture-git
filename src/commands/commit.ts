@@ -2,9 +2,30 @@ import { AnthropicLanguageModel } from "@effect/ai-anthropic";
 import { Console, Effect, Layer } from "effect";
 import { Command, Flag, Prompt } from "effect/unstable/cli";
 
-import { GitContext } from "../domain/CommitMessage.ts";
+import { CommitMessage, GitContext } from "../domain/CommitMessage.ts";
 import { CommitAi } from "../services/CommitAi.ts";
 import { Git } from "../services/Git.ts";
+
+type Action = "commit" | "regenerate" | "regenerate_with_feedback" | "cancel";
+
+const actionMenu = Prompt.select<Action>({
+    message: "What would you like to do?",
+    choices: [
+        { title: "Commit", value: "commit" },
+        { title: "Regenerate", value: "regenerate" },
+        { title: "Regenerate with feedback", value: "regenerate_with_feedback" },
+        { title: "Cancel", value: "cancel" },
+    ],
+});
+
+const displayMessage = (msg: CommitMessage) =>
+    Effect.gen(function* () {
+        yield* Console.log("");
+        yield* Console.log(msg.subjectLine);
+        yield* Console.log("");
+        yield* Console.log(msg.body);
+        yield* Console.log("");
+    });
 
 export const commit = Command.make(
     "commit",
@@ -30,30 +51,52 @@ export const commit = Command.make(
 
             const context = new GitContext({ diff, branch, status, recentCommits });
 
-            // 2. Generate commit message
-            yield* Console.log("Generating commit message...");
-            const msg = yield* commitAi.generate(context);
+            // 2. Create chat session
+            const chat = yield* commitAi.createChat(context);
 
-            // 3. Display formatted message
-            yield* Console.log("");
-            yield* Console.log(msg.subjectLine);
-            yield* Console.log("");
-            yield* Console.log(msg.body);
-            yield* Console.log("");
+            // 3. Generate-review loop
+            let prompt: Array<{ role: "user"; content: string }> = [];
 
-            // 4. Confirm
-            const confirmed = yield* Prompt.confirm({ message: "Commit with this message?" });
-            if (!confirmed) {
-                yield* Console.log("Cancelled.");
-                return;
+            while (true) {
+                yield* Console.log("Generating commit message...");
+                const response = yield* chat.generateObject({
+                    objectName: "commit_message",
+                    prompt,
+                    schema: CommitMessage,
+                });
+                const msg = response.value;
+
+                yield* displayMessage(msg);
+
+                const action: Action = yield* actionMenu;
+
+                if (action === "commit") {
+                    yield* git.commit(msg.subjectLine, msg.body);
+                    yield* Console.log("Committed.");
+                    return;
+                }
+
+                if (action === "cancel") {
+                    yield* Console.log("Cancelled.");
+                    return;
+                }
+
+                if (action === "regenerate_with_feedback") {
+                    const feedback = yield* Prompt.text({
+                        message: "What should be different?",
+                    });
+                    prompt = [{ role: "user", content: feedback }];
+                } else {
+                    // Plain regenerate — let the model try again with history context
+                    prompt = [{ role: "user", content: "Please try a different commit message." }];
+                }
             }
-
-            // 5. Commit
-            yield* git.commit(msg.subjectLine, msg.body);
-            yield* Console.log("Committed.");
         }).pipe(
             Effect.provide(
-                CommitAi.layer.pipe(Layer.provide(AnthropicLanguageModel.model(config.model))),
+                Layer.merge(
+                    CommitAi.layer,
+                    AnthropicLanguageModel.model(config.model),
+                ),
             ),
             Effect.catchTag("GitError", (error) => Console.error(error.message)),
             Effect.catchTag("CommitAiError", (error) => Console.error(`AI error: ${error.message}`)),
