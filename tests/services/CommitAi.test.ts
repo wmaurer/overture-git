@@ -2,7 +2,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Stream } from "effect";
 import { LanguageModel } from "effect/unstable/ai";
 
-import { CommitMessage, GitContext } from "../../src/domain/CommitMessage.ts";
+import { CommitMessage, FileAnalysis, FileTriage, GitContext } from "../../src/domain/CommitMessage.ts";
 import { CommitAi } from "../../src/services/CommitAi.ts";
 
 const makeCommitJson = (overrides: Partial<{ type: string; scope: string; subject: string; bullets: string[] }> = {}) =>
@@ -99,5 +99,75 @@ describe("CommitAi", () => {
             expect(second.value.type).toBe("fix");
             expect(callCount).toBe(2);
         }).pipe(Effect.provide(TestCommitAiLayer)),
+    );
+});
+
+// --- Triage / Analysis tests ---
+
+let triageCallCount = 0;
+
+const makeTriageJson = () =>
+    JSON.stringify({
+        analyse: ["src/index.ts", "src/utils.ts"],
+        skip: [{ path: "output.log", reason: "log file" }],
+    });
+
+const makeAnalysisJson = (allRelevant: boolean) =>
+    JSON.stringify(
+        allRelevant
+            ? { allRelevant: true, relevant: ["src/index.ts", "src/utils.ts"], irrelevant: [] }
+            : {
+                  allRelevant: false,
+                  relevant: ["src/index.ts"],
+                  irrelevant: [{ path: "src/utils.ts", reason: "unrelated utility change" }],
+              },
+    );
+
+const TriageModelLayer = Layer.effect(
+    LanguageModel.LanguageModel,
+    LanguageModel.make({
+        generateText: () => {
+            triageCallCount++;
+            const json = triageCallCount === 1 ? makeTriageJson() : makeAnalysisJson(triageCallCount === 2);
+            return Effect.succeed([
+                { type: "text" as const, text: json },
+                {
+                    type: "finish" as const,
+                    reason: "stop" as const,
+                    usage: {
+                        inputTokens: { uncached: 50, total: 50, cacheRead: 0, cacheWrite: 0 },
+                        outputTokens: { total: 30, text: undefined, reasoning: undefined },
+                    },
+                    response: undefined,
+                },
+            ]);
+        },
+        streamText: () => Stream.die("not implemented"),
+    }),
+);
+
+const TriageCommitAiLayer = Layer.merge(CommitAi.layer, TriageModelLayer);
+
+describe("CommitAi.triageFiles", () => {
+    it.effect("classifies files as analyse or skip", () =>
+        Effect.gen(function* () {
+            triageCallCount = 0;
+            const commitAi = yield* CommitAi;
+            const result = yield* commitAi.triageFiles(["src/index.ts", "src/utils.ts", "output.log"], "feat/thing");
+            expect(result.analyse).toContain("src/index.ts");
+            expect(result.skip).toHaveLength(1);
+            expect(result.skip[0].path).toBe("output.log");
+        }).pipe(Effect.provide(TriageCommitAiLayer)),
+    );
+});
+
+describe("CommitAi.analyseFiles", () => {
+    it.effect("groups files by relevance", () =>
+        Effect.gen(function* () {
+            triageCallCount = 1; // skip triage response, go to analysis
+            const commitAi = yield* CommitAi;
+            const result = yield* commitAi.analyseFiles("diff content here", "feat/thing");
+            expect(result.relevant).toContain("src/index.ts");
+        }).pipe(Effect.provide(TriageCommitAiLayer)),
     );
 });
