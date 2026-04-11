@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
-import { LanguageModel } from "effect/unstable/ai";
+import { Chat } from "effect/unstable/ai";
 
-import { CommitMessage, GitContext } from "../domain/CommitMessage.ts";
+import { GitContext } from "../domain/CommitMessage.ts";
 import { CommitAiError } from "../domain/errors.ts";
 
 const systemPrompt = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
@@ -34,25 +34,18 @@ ${context.diff}`;
 export class CommitAi extends Context.Service<
     CommitAi,
     {
-        readonly generate: (context: GitContext) => Effect.Effect<CommitMessage, CommitAiError>;
+        readonly createChat: (context: GitContext) => Effect.Effect<Chat.Service, CommitAiError>;
     }
 >()("@overture/CommitAi") {
     static layer = Layer.effect(
         CommitAi,
         Effect.gen(function* () {
-            const model = yield* LanguageModel.LanguageModel;
-
-            const generate = Effect.fn("CommitAi.generate")(
+            const createChat = Effect.fn("CommitAi.createChat")(
                 function* (context: GitContext) {
-                    const response = yield* model.generateObject({
-                        objectName: "commit_message",
-                        prompt: [
-                            { role: "system" as const, content: systemPrompt },
-                            { role: "user" as const, content: buildUserPrompt(context) },
-                        ],
-                        schema: CommitMessage,
-                    });
-                    return response.value;
+                    return yield* Chat.fromPrompt([
+                        { role: "system" as const, content: systemPrompt },
+                        { role: "user" as const, content: buildUserPrompt(context) },
+                    ]);
                 },
                 Effect.mapError(
                     (error) =>
@@ -63,7 +56,7 @@ export class CommitAi extends Context.Service<
                 ),
             );
 
-            return CommitAi.of({ generate });
+            return CommitAi.of({ createChat });
         }),
     );
 }
