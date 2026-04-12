@@ -37,8 +37,8 @@ export class OgitConfigService extends Context.Service<
 
                 // 2. Per-repo config (walk up from cwd)
                 const cwd = process.cwd();
-                const localPath = findConfigFile(cwd);
-                const localConfig = localPath ? yield* readAndParseKdl(localPath) : Option.none<OgitConfigType>();
+                const localPath = yield* findConfigFile(cwd);
+                const localConfig = Option.isSome(localPath) ? yield* readAndParseKdl(localPath.value) : Option.none<OgitConfigType>();
 
                 // 3. Env var overrides (api-key only)
                 const envApiKey = yield* Config.option(Config.string("OGIT_API_KEY"));
