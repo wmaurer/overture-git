@@ -1,6 +1,6 @@
 import { Config, Context, Effect, Layer, Option, Schema } from "effect";
+import * as FileSystem from "effect/FileSystem";
 import envPaths from "env-paths";
-import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { OgitConfigSchema, type OgitConfig as OgitConfigType } from "../domain/OgitConfig.ts";
@@ -10,15 +10,13 @@ import { mergeConfigs } from "../domain/mergeConfigs.ts";
 
 const GLOBAL_CONFIG_FILENAME = "config.kdl";
 
-const readAndParseKdl = (filePath: string): OgitConfigType | undefined => {
-    try {
-        const content = fs.readFileSync(filePath, "utf-8");
+const readAndParseKdl = (filePath: string) =>
+    Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const content = yield* fs.readFileString(filePath);
         const raw = parseKdlToObject(content);
         return Schema.decodeUnknownSync(OgitConfigSchema)(raw);
-    } catch {
-        return undefined;
-    }
-};
+    }).pipe(Effect.option);
 
 export class OgitConfigService extends Context.Service<
     OgitConfigService,
@@ -34,13 +32,13 @@ export class OgitConfigService extends Context.Service<
             OgitConfigService,
             Effect.gen(function* () {
                 // 1. Global config
-                const globalDir = yield* Effect.sync(() => envPaths("ogit", { suffix: "" }).config);
-                const globalConfig = readAndParseKdl(path.join(globalDir, GLOBAL_CONFIG_FILENAME)) ?? {};
+                const globalDir = envPaths("ogit", { suffix: "" }).config;
+                const globalConfig = yield* readAndParseKdl(path.join(globalDir, GLOBAL_CONFIG_FILENAME));
 
                 // 2. Per-repo config (walk up from cwd)
                 const cwd = process.cwd();
                 const localPath = findConfigFile(cwd);
-                const localConfig = localPath ? (readAndParseKdl(localPath) ?? {}) : {};
+                const localConfig = localPath ? yield* readAndParseKdl(localPath) : Option.none<OgitConfigType>();
 
                 // 3. Env var overrides (api-key only)
                 const envApiKey = yield* Config.option(Config.string("OGIT_API_KEY"));
@@ -52,7 +50,12 @@ export class OgitConfigService extends Context.Service<
                 const cliConfig: OgitConfigType = overrides.model ? { model: overrides.model } : {};
 
                 // 5. Merge: global < local < env < cli
-                const merged = mergeConfigs(globalConfig, localConfig, envConfig, cliConfig);
+                const merged = mergeConfigs(
+                    Option.getOrElse(globalConfig, () => ({}) as OgitConfigType),
+                    Option.getOrElse(localConfig, () => ({}) as OgitConfigType),
+                    envConfig,
+                    cliConfig,
+                );
 
                 return OgitConfigService.of({
                     config: merged,
