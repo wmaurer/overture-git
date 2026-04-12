@@ -5,7 +5,7 @@ import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
 import { GitContext } from "../domain/CommitMessage.ts";
 import { CommitAiError } from "../domain/errors.ts";
 
-const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
+export const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
 
 Write the commit message in English. Use correct capitalization.
 
