@@ -131,12 +131,16 @@ export const commit = Command.make(
             Flag.withDescription("Print the system prompt used for commit message generation and exit"),
         ),
     },
-    (config) =>
-        Effect.gen(function* () {
-            const ogitConfig = yield* OgitConfigService;
+    (config) => {
+        const ogitConfigLayer = OgitConfigService.layer(Option.match(config.model, {
+            onNone: () => ({}),
+            onSome: (model) => ({ model }),
+        }));
 
-            // Show prompt and exit if requested
-            if (config.showPrompt) {
+        if (config.showPrompt) {
+            return Effect.gen(function* () {
+                const ogitConfig = yield* OgitConfigService;
+
                 yield* Console.log("Default system prompt:\n");
                 yield* Console.log(DEFAULT_COMMIT_SYSTEM_PROMPT);
 
@@ -144,10 +148,11 @@ export const commit = Command.make(
                     yield* Console.log("\nCustom system prompt (from config):\n");
                     yield* Console.log(ogitConfig.commitSystemPrompt.value);
                 }
+            }).pipe(Effect.provide(ogitConfigLayer));
+        }
 
-                return;
-            }
-
+        return Effect.gen(function* () {
+            const ogitConfig = yield* OgitConfigService;
             const git = yield* Git;
             const commitAi = yield* CommitAi;
             const editor = yield* Editor;
@@ -268,16 +273,12 @@ export const commit = Command.make(
                             }),
                         ),
                     ),
-                    Layer.provideMerge(
-                        OgitConfigService.layer(Option.match(config.model, {
-                            onNone: () => ({}),
-                            onSome: (model) => ({ model }),
-                        })),
-                    ),
+                    Layer.provideMerge(ogitConfigLayer),
                 ),
             ),
             Effect.catchTag("GitError", (error) => Console.error(error.message)),
             Effect.catchTag("CommitAiError", (error) => Console.error(`AI error: ${error.message}`)),
             Effect.catchTag("EditorError", (error) => Console.error(`Editor error: ${error.message}`)),
-        ),
+        );
+    },
 ).pipe(Command.withDescription("Generate and create a conventional commit from staged changes"));
