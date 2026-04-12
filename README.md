@@ -8,8 +8,8 @@ Git workflow tools powered by AI. `ogit` generates conventional commit messages 
 - **Intelligent auto-staging** — when nothing is staged, AI triages files by name, filters out binaries and generated files, analyzes diffs for relevance, and lets you exclude unrelated changes
 - **Interactive workflow** — review the generated message, then commit, edit, regenerate (with optional feedback), or cancel
 - **Non-interactive mode** — automate commits in scripts and AI agent workflows with `--non-interactive`
-- **Custom instructions** — guide the AI with your own rules via `OGIT_INSTRUCTIONS` (e.g. language, tone, extra conventions)
-- **Model selection** — choose any Anthropic model with `--model`
+- **Layered configuration** — configure via `.ogit.kdl` config files (global and per-repo), environment variables, and CLI flags
+- **Model selection** — choose any Anthropic model with `--model` or in config
 
 ## Installation
 
@@ -22,14 +22,6 @@ This makes the `ogit` command available via the `bin` entry in `package.json`. Y
 
 ```bash
 pnpm link --global
-```
-
-## Setup
-
-Set your Anthropic API key:
-
-```bash
-export OGIT_API_KEY=sk-ant-...
 ```
 
 ## Usage
@@ -71,23 +63,62 @@ ogit commit -n
 
 Generates a commit message and commits immediately without prompting. If nothing is staged, all changes are added (`git add -A`) before generating. Useful for scripts and AI agent integrations.
 
-### Custom instructions
-
-Provide extra guidance to the AI by setting `OGIT_INSTRUCTIONS`:
-
-```bash
-export OGIT_INSTRUCTIONS="Write the commit message in Swiss Standard German. Never use Eszett (ß), always use Umlauts (ä, ö, ü)."
-```
-
-The value is appended to the system prompt, so write it as a direct instruction (imperative, concise). Multi-line values work if your shell supports them.
-
 ### Model selection
 
 ```bash
 ogit commit --model claude-sonnet-4-20250514
 ```
 
-Defaults to `claude-haiku-4-5-20251001`.
+Defaults to `claude-haiku-4-5` (configurable via `.ogit.kdl`).
+
+## Configuration
+
+ogit uses [KDL](https://kdl.dev/) config files with a layered resolution order:
+
+1. **Global config** — `~/.config/ogit/config.kdl` (Linux), `~/Library/Application Support/ogit/config.kdl` (macOS), `%APPDATA%\ogit\config.kdl` (Windows)
+2. **Per-repo config** — `.ogit.kdl` in the current directory or any parent (walks up to find the nearest one)
+3. **Environment variables** — `OGIT_API_KEY`
+4. **CLI flags** — `--model`
+
+Later sources override earlier ones.
+
+### Example `.ogit.kdl`
+
+```kdl
+api-key "sk-ant-..."
+model "claude-sonnet-4-20250514"
+
+commit {
+    system-prompt """
+        You are a git commit message generator.
+        Write commit messages in Swiss Standard German.
+        Never use Eszett (ß), always use Umlauts (ä, ö, ü).
+        Use conventional commit format: type(scope): short description.
+        """
+}
+```
+
+### Config options
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `api-key` | string | Anthropic API key (also via `OGIT_API_KEY` env var) |
+| `model` | string | Anthropic model to use (default: `claude-haiku-4-5`) |
+| `commit { system-prompt }` | string | Custom system prompt that replaces the default |
+
+### API key
+
+Set your API key via config file or environment variable:
+
+```bash
+export OGIT_API_KEY=sk-ant-...
+```
+
+Or in `.ogit.kdl`:
+
+```kdl
+api-key "sk-ant-..."
+```
 
 ## Claude Code Integration
 
