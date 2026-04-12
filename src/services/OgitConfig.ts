@@ -1,7 +1,7 @@
 import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 import * as FileSystem from "effect/FileSystem";
+import * as Path from "effect/Path";
 import envPaths from "env-paths";
-import * as path from "node:path";
 
 import { OgitConfigSchema, type OgitConfig as OgitConfigType } from "../domain/OgitConfig.ts";
 import { parseKdlToObject } from "../domain/parseKdl.ts";
@@ -31,12 +31,14 @@ export class OgitConfigService extends Context.Service<
         Layer.effect(
             OgitConfigService,
             Effect.gen(function* () {
+                const path = yield* Path.Path;
+
                 // 1. Global config
                 const globalDir = envPaths("ogit", { suffix: "" }).config;
                 const globalConfig = yield* readAndParseKdl(path.join(globalDir, GLOBAL_CONFIG_FILENAME));
 
                 // 2. Per-repo config (walk up from cwd)
-                const cwd = process.cwd();
+                const cwd = path.resolve();
                 const localPath = yield* findConfigFile(cwd);
                 const localConfig = Option.isSome(localPath) ? yield* readAndParseKdl(localPath.value) : Option.none<OgitConfigType>();
 

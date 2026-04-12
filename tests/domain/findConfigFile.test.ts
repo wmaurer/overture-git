@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Option } from "effect";
+import { Effect, Layer, Option, Path } from "effect";
 import { NodeFileSystem } from "@effect/platform-node";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -14,7 +14,7 @@ describe("findConfigFile", () => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ogit-test-"));
         return f(tmpDir).pipe(
             Effect.ensuring(Effect.sync(() => fs.rmSync(tmpDir, { recursive: true, force: true }))),
-            Effect.provide(NodeFileSystem.layer),
+            Effect.provide(Layer.mergeAll(NodeFileSystem.layer, Path.layer)),
         );
     };
 

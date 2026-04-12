@@ -1,12 +1,13 @@
 import { Effect, Option } from "effect";
 import * as FileSystem from "effect/FileSystem";
-import * as path from "node:path";
+import * as Path from "effect/Path";
 
 const CONFIG_FILENAME = ".ogit.kdl";
 
-export const findConfigFile = (startDir: string): Effect.Effect<Option.Option<string>, never, FileSystem.FileSystem> =>
+export const findConfigFile = (startDir: string): Effect.Effect<Option.Option<string>, never, FileSystem.FileSystem | Path.Path> =>
     Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
         let dir = path.resolve(startDir);
         while (true) {
             const candidate = path.join(dir, CONFIG_FILENAME);
