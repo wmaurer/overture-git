@@ -5,11 +5,9 @@ import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
 import { GitContext } from "../domain/CommitMessage.ts";
 import { CommitAiError } from "../domain/errors.ts";
 
-const buildCommitSystemPrompt = (instructions?: string): string => {
-    const customRule = instructions ? `\n- ${instructions}` : "";
-    return `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
+const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
 
-Rules:${customRule}
+Rules:
 - Use conventional commit format: type(scope): short description
 - Subject must be imperative mood, max 72 characters, lowercase
 - Bullets should summarize WHAT changed and WHY, not HOW
@@ -17,7 +15,6 @@ Rules:${customRule}
 - Do NOT mention AI, Claude, or auto-generation
 - Common types: feat, fix, refactor, chore, docs, test, perf, style
 - Scope is optional — use it when changes are focused on one area`;
-};
 
 const buildCommitUserPrompt = (
     context: GitContext,
@@ -59,7 +56,7 @@ const buildAnalysisPrompt = (diff: string, branch: string): string =>
 export class CommitAi extends Context.Service<
     CommitAi,
     {
-        readonly createChat: (context: GitContext, instructions?: string) => Effect.Effect<Chat.Service, CommitAiError>;
+        readonly createChat: (context: GitContext, systemPrompt?: string) => Effect.Effect<Chat.Service, CommitAiError>;
         readonly triageFiles: (
             files: ReadonlyArray<string>,
             branch: string,
@@ -74,9 +71,9 @@ export class CommitAi extends Context.Service<
         CommitAi,
         CommitAi.of({
             createChat: Effect.fn("CommitAi.createChat")(
-                function* (context: GitContext, instructions?: string) {
+                function* (context: GitContext, systemPrompt?: string) {
                     return yield* Chat.fromPrompt([
-                        { role: "system", content: buildCommitSystemPrompt(instructions) },
+                        { role: "system", content: systemPrompt ?? DEFAULT_COMMIT_SYSTEM_PROMPT },
                         { role: "user", content: buildCommitUserPrompt(context) },
                     ]);
                 },

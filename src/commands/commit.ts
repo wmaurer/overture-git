@@ -1,5 +1,5 @@
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
-import { Config, Console, Effect, Layer } from "effect";
+import { Config, Console, Effect, Layer, Option, Redacted } from "effect";
 import { Command, Flag, Prompt } from "effect/unstable/cli";
 import { FetchHttpClient } from "effect/unstable/http";
 
@@ -11,6 +11,7 @@ import { GitError } from "../domain/errors.ts";
 import { CommitAi } from "../services/CommitAi.ts";
 import { Editor } from "../services/Editor.ts";
 import { Git } from "../services/Git.ts";
+import { OgitConfigService } from "../services/OgitConfig.ts";
 
 type Action = "commit" | "regenerate" | "regenerate_with_feedback" | "edit" | "cancel";
 
@@ -118,7 +119,7 @@ export const commit = Command.make(
     {
         model: Flag.string("model").pipe(
             Flag.withAlias("m"),
-            Flag.withDefault("claude-haiku-4-5"),
+            Flag.optional,
             Flag.withDescription("Anthropic model to use"),
         ),
         nonInteractive: Flag.boolean("non-interactive").pipe(
@@ -129,6 +130,7 @@ export const commit = Command.make(
     },
     (config) =>
         Effect.gen(function* () {
+            const ogitConfig = yield* OgitConfigService;
             const git = yield* Git;
             const commitAi = yield* CommitAi;
             const editor = yield* Editor;
@@ -156,16 +158,16 @@ export const commit = Command.make(
                 git.status(),
                 git.log(10),
             ]);
-            const instructions = yield* Config.string("OGIT_INSTRUCTIONS").pipe(
-                Config.orElse(() => Config.succeed("")),
-            );
 
             const context = new GitContext({ diff, branch, status, recentCommits });
 
-            // 2. Create chat session
-            const chat = yield* commitAi.createChat(context, instructions || undefined);
+            // 3. Create chat session (with optional system prompt from config)
+            const chat = yield* commitAi.createChat(
+                context,
+                Option.getOrUndefined(ogitConfig.commitSystemPrompt),
+            );
 
-            // 3. Initial generation
+            // 4. Initial generation
             yield* Console.log("Generating commit message...");
             let prompt: Array<{ role: "user"; content: string }> = [];
             const initial = yield* chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage });
@@ -179,7 +181,7 @@ export const commit = Command.make(
                 return;
             }
 
-            // 4. Action loop
+            // 5. Action loop
             while (true) {
                 const action: Action = yield* actionMenu;
 
@@ -221,11 +223,39 @@ export const commit = Command.make(
             }
         }).pipe(
             Effect.provide(
-                Layer.mergeAll(CommitAi.layer, Editor.layer, AnthropicLanguageModel.model(config.model)).pipe(
+                Layer.mergeAll(
+                    CommitAi.layer,
+                    Editor.layer,
+                    Layer.unwrap(
+                        Effect.gen(function* () {
+                            const ogitConfig = yield* OgitConfigService;
+                            const model = Option.getOrElse(ogitConfig.model, () => "claude-haiku-4-5");
+                            return AnthropicLanguageModel.model(model);
+                        }),
+                    ),
+                ).pipe(
                     Layer.provide(
-                        AnthropicClient.layerConfig({
-                            apiKey: Config.redacted("OGIT_API_KEY"),
-                        }).pipe(Layer.provide(FetchHttpClient.layer)),
+                        Layer.unwrap(
+                            Effect.gen(function* () {
+                                const ogitConfig = yield* OgitConfigService;
+                                return AnthropicClient.layerConfig({
+                                    apiKey: Config.redacted("OGIT_API_KEY").pipe(
+                                        Config.orElse(() =>
+                                            Option.match(ogitConfig.apiKey, {
+                                                onNone: () => Config.redacted("OGIT_API_KEY"),
+                                                onSome: (key) => Config.succeed(Redacted.make(key)),
+                                            }),
+                                        ),
+                                    ),
+                                }).pipe(Layer.provide(FetchHttpClient.layer));
+                            }),
+                        ),
+                    ),
+                    Layer.provideMerge(
+                        OgitConfigService.layer(Option.match(config.model, {
+                            onNone: () => ({}),
+                            onSome: (model) => ({ model }),
+                        })),
                     ),
                 ),
             ),
