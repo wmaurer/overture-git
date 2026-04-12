@@ -13,6 +13,12 @@ git worktree list --porcelain | head -1 | sed 's/^worktree //'
 
 Then look for `.references/` there. Always use this when searching reference code.
 
+### Available References
+
+- **`.references/effect`** — Effect v4 (beta) source code. Canonical reference for all Effect patterns.
+- **`.references/kdl`** — `@bgotink/kdl` source. KDL document language parser used for config files.
+- **`.references/env-paths`** — `env-paths` source. Cross-platform config directory resolution (XDG, macOS, Windows).
+
 <!-- effect-solutions:start -->
 
 ## Effect Best Practices
