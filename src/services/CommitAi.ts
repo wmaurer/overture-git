@@ -5,7 +5,7 @@ import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
 import { GitContext } from "../domain/CommitMessage.ts";
 import { CommitAiError } from "../domain/errors.ts";
 
-const buildSystemPrompt = (instructions?: string): string => {
+const buildCommitSystemPrompt = (instructions?: string): string => {
     const customRule = instructions ? `\n- ${instructions}` : "";
     return `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
 
@@ -19,7 +19,7 @@ Rules:${customRule}
 - Scope is optional — use it when changes are focused on one area`;
 };
 
-const buildUserPrompt = (
+const buildCommitUserPrompt = (
     context: GitContext,
 ): string => `Analyze the following git context and generate a commit message.
 
@@ -76,8 +76,8 @@ export class CommitAi extends Context.Service<
             createChat: Effect.fn("CommitAi.createChat")(
                 function* (context: GitContext, instructions?: string) {
                     return yield* Chat.fromPrompt([
-                        { role: "system", content: buildSystemPrompt(instructions) },
-                        { role: "user", content: buildUserPrompt(context) },
+                        { role: "system", content: buildCommitSystemPrompt(instructions) },
+                        { role: "user", content: buildCommitUserPrompt(context) },
                     ]);
                 },
                 Effect.mapError(
