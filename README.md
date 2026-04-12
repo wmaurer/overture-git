@@ -63,6 +63,14 @@ ogit commit -n
 
 Generates a commit message and commits immediately without prompting. If nothing is staged, all changes are added (`git add -A`) before generating. Useful for scripts and AI agent integrations.
 
+### Show system prompt
+
+```bash
+ogit commit --show-prompt
+```
+
+Prints the default system prompt used for commit message generation. If a custom prompt is configured in `.ogit.kdl`, both the default and custom prompts are shown. Does not require an API key.
+
 ### Model selection
 
 ```bash
