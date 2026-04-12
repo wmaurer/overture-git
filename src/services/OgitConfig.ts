@@ -10,13 +10,15 @@ import { mergeConfigs } from "../domain/mergeConfigs.ts";
 
 const GLOBAL_CONFIG_FILENAME = "config.kdl";
 
-const readAndParseKdl = (filePath: string) =>
-    Effect.gen(function* () {
+const readAndParseKdl = Effect.fn("readAndParseKdl")(
+    function* (filePath: string) {
         const fs = yield* FileSystem.FileSystem;
         const content = yield* fs.readFileString(filePath);
         const raw = parseKdlToObject(content);
         return Schema.decodeUnknownSync(OgitConfigSchema)(raw);
-    }).pipe(Effect.option);
+    },
+    Effect.option,
+);
 
 export class OgitConfigService extends Context.Service<
     OgitConfigService,

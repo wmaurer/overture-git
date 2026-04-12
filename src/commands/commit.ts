@@ -26,16 +26,15 @@ const actionMenu = Prompt.select<Action>({
     ],
 });
 
-const displayRaw = (m: { subject: string; body: string }) =>
-    Effect.gen(function* () {
-        yield* Console.log("");
-        yield* Console.log(m.subject);
-        yield* Console.log("");
-        yield* Console.log(m.body);
-        yield* Console.log("");
-    });
+const displayRaw = Effect.fn("displayRaw")(function* (m: { subject: string; body: string }) {
+    yield* Console.log("");
+    yield* Console.log(m.subject);
+    yield* Console.log("");
+    yield* Console.log(m.body);
+    yield* Console.log("");
+});
 
-const autoStage = Effect.gen(function* () {
+const autoStage = Effect.fn("autoStage")(function* () {
     const git = yield* Git;
     const commitAi = yield* CommitAi;
 
@@ -147,7 +146,7 @@ export const commit = Command.make(
                 if (config.nonInteractive) {
                     yield* git.addAll();
                 } else {
-                    yield* autoStage;
+                    yield* autoStage();
                 }
             }
 
