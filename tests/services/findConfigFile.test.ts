@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-import { findConfigFile } from "../../src/domain/findConfigFile.ts";
+import { findConfigFile } from "../../src/services/findConfigFile.ts";
 
 describe("findConfigFile", () => {
     let tmpDir: string;

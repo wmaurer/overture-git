@@ -5,7 +5,7 @@ import envPaths from "env-paths";
 
 import { OgitConfigSchema, type OgitConfig as OgitConfigType } from "../domain/OgitConfig.ts";
 import { parseKdlToObject } from "../domain/parseKdl.ts";
-import { findConfigFile } from "../domain/findConfigFile.ts";
+import { findConfigFile } from "./findConfigFile.ts";
 import { mergeConfigs } from "../domain/mergeConfigs.ts";
 
 const GLOBAL_CONFIG_FILENAME = "config.kdl";
