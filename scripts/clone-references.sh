@@ -14,6 +14,8 @@ mkdir -p "$REFERENCES_DIR"
 
 repos=(
   "effect|https://github.com/Effect-TS/effect-smol.git"
+  "kdl|https://github.com/bgotink/kdl.git"
+  "env-paths|https://github.com/sindresorhus/env-paths.git"
 )
 
 for entry in "${repos[@]}"; do
@@ -23,7 +25,7 @@ for entry in "${repos[@]}"; do
 
   if [ -d "$target/.git" ]; then
     echo "Updating $name..."
-    git -C "$target" pull --depth 1
+    git -C "$target" pull --rebase --depth 1
     echo "✓ $name up to date"
     echo
     continue
