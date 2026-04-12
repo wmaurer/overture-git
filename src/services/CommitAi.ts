@@ -7,6 +7,8 @@ import { CommitAiError } from "../domain/errors.ts";
 
 const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
 
+Write the commit message in English. Use correct capitalization.
+
 Rules:
 - Use conventional commit format: type(scope): short description
 - Subject must be imperative mood, max 72 characters, lowercase
