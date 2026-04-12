@@ -8,7 +8,7 @@ import { parseBinaryFiles } from "../domain/parseBinaryFiles.ts";
 import { parseEditedMessage } from "../domain/parseEditedMessage.ts";
 import { parseStatus } from "../domain/parseStatus.ts";
 import { GitError } from "../domain/errors.ts";
-import { CommitAi } from "../services/CommitAi.ts";
+import { CommitAi, DEFAULT_COMMIT_SYSTEM_PROMPT } from "../services/CommitAi.ts";
 import { Editor } from "../services/Editor.ts";
 import { Git } from "../services/Git.ts";
 import { OgitConfigService } from "../services/OgitConfig.ts";
@@ -126,10 +126,28 @@ export const commit = Command.make(
             Flag.withDefault(false),
             Flag.withDescription("Generate and commit without prompting"),
         ),
+        showPrompt: Flag.boolean("show-prompt").pipe(
+            Flag.withDefault(false),
+            Flag.withDescription("Print the system prompt used for commit message generation and exit"),
+        ),
     },
     (config) =>
         Effect.gen(function* () {
             const ogitConfig = yield* OgitConfigService;
+
+            // Show prompt and exit if requested
+            if (config.showPrompt) {
+                yield* Console.log("Default system prompt:\n");
+                yield* Console.log(DEFAULT_COMMIT_SYSTEM_PROMPT);
+
+                if (Option.isSome(ogitConfig.commitSystemPrompt)) {
+                    yield* Console.log("\nCustom system prompt (from config):\n");
+                    yield* Console.log(ogitConfig.commitSystemPrompt.value);
+                }
+
+                return;
+            }
+
             const git = yield* Git;
             const commitAi = yield* CommitAi;
             const editor = yield* Editor;
