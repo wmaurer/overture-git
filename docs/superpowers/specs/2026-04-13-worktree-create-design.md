@@ -9,24 +9,26 @@ Add an `ogit worktree create` command that creates a git worktree and branch fro
 Rename `src/services/CommitAi.ts` to `src/services/OgitAi.ts`. Rename the service class/tag from `CommitAi` to `OgitAi`. Update all import sites (`src/commands/commit.ts`, `src/main.ts`).
 
 All existing methods remain unchanged:
+
 - `createChat(context, systemPrompt?)` — returns a `Chat.Service` for commit message generation
 - `triageFiles(files, branch)` — classifies files as analyse/skip
 - `analyseFiles(diff, branch)` — groups changes by relevance
 
 New method:
+
 - `suggestBranchName(diff: string)` — sends diff to Claude, returns a `BranchNameSuggestion`
 
 ## Git Service Extensions
 
 New methods on `src/services/Git.ts`:
 
-| Method | Git command | Purpose |
-|---|---|---|
-| `stash()` | `git stash --include-untracked` | Stash all changes including untracked files |
-| `stashPopIn(cwd)` | `git -C <cwd> stash pop` | Pop stash in a specific worktree directory |
-| `worktreeAdd(path, branch)` | `git worktree add -b <branch> <path>` | Create worktree with new branch |
-| `diffAll()` | `git diff HEAD` | All changes (staged + unstaged) vs HEAD — requires `intentToAdd` for untracked files first |
-| `repoRoot()` | `git rev-parse --show-toplevel` | Resolve repo root for `.worktrees/` path |
+| Method                      | Git command                           | Purpose                                                                                    |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `stash()`                   | `git stash --include-untracked`       | Stash all changes including untracked files                                                |
+| `stashPopIn(cwd)`           | `git -C <cwd> stash pop`              | Pop stash in a specific worktree directory                                                 |
+| `worktreeAdd(path, branch)` | `git worktree add -b <branch> <path>` | Create worktree with new branch                                                            |
+| `diffAll()`                 | `git diff HEAD`                       | All changes (staged + unstaged) vs HEAD — requires `intentToAdd` for untracked files first |
+| `repoRoot()`                | `git rev-parse --show-toplevel`       | Resolve repo root for `.worktrees/` path                                                   |
 
 Note: `stashPopIn` uses `git -C` to set the working directory, so the popped changes land in the correct worktree. The existing `run()` helper spawns in the inherited cwd; `git -C` avoids needing to change the spawner.
 
@@ -39,7 +41,7 @@ New file: `src/commands/worktree.ts`
 Parent command `worktree` with subcommand `create`. Registered in `main.ts`:
 
 ```typescript
-Command.withSubcommands([commit, worktree])
+Command.withSubcommands([commit, worktree]);
 ```
 
 ### Flow
@@ -84,8 +86,8 @@ New file or addition to domain schemas:
 
 ```typescript
 class BranchNameSuggestion extends Schema.Class<BranchNameSuggestion>("BranchNameSuggestion")({
-  name: Schema.String,
-  reasoning: Schema.String,
+    name: Schema.String,
+    reasoning: Schema.String,
 }) {}
 ```
 
@@ -103,6 +105,7 @@ Instructs Claude to suggest a conventional branch name given a diff. Format: `<t
 New tagged error class in `src/domain/errors.ts`, following existing patterns:
 
 Reasons:
+
 - `stash-failed` — `git stash` failed
 - `worktree-create-failed` — `git worktree add` failed
 - `stash-pop-failed` — `git stash pop` failed in the new worktree

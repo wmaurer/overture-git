@@ -15,6 +15,7 @@
 ### Task 1: Rename CommitAi → OgitAi
 
 **Files:**
+
 - Rename: `src/services/CommitAi.ts` → `src/services/OgitAi.ts`
 - Modify: `src/commands/commit.ts`
 - Modify: `src/domain/errors.ts`
@@ -36,10 +37,13 @@ Rename `CommitAiError` to `OgitAiError`. Update the tag from `"CommitAiError"` t
 - [ ] **Step 4: Update imports in `src/commands/commit.ts`**
 
 Change:
+
 ```typescript
 import { CommitAi, DEFAULT_COMMIT_SYSTEM_PROMPT } from "../services/CommitAi.ts";
 ```
+
 to:
+
 ```typescript
 import { OgitAi, DEFAULT_COMMIT_SYSTEM_PROMPT } from "../services/OgitAi.ts";
 ```
@@ -82,6 +86,7 @@ ogit commit -n
 ### Task 2: Add BranchNameSuggestion schema
 
 **Files:**
+
 - Create: `src/domain/BranchNameSuggestion.ts`
 - Test: `tests/domain/BranchNameSuggestion.test.ts`
 
@@ -146,6 +151,7 @@ ogit commit -n
 ### Task 3: Add sanitizeBranchName utility
 
 **Files:**
+
 - Create: `src/domain/sanitizeBranchName.ts`
 - Test: `tests/domain/sanitizeBranchName.test.ts`
 
@@ -192,8 +198,7 @@ Expected: FAIL — module not found.
 - [ ] **Step 3: Create `src/domain/sanitizeBranchName.ts`**
 
 ```typescript
-export const sanitizeBranchName = (name: string): string =>
-    name.replace(/\//g, "-").replace(/[^a-zA-Z0-9\-\.]/g, "");
+export const sanitizeBranchName = (name: string): string => name.replace(/\//g, "-").replace(/[^a-zA-Z0-9\-\.]/g, "");
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -216,6 +221,7 @@ ogit commit -n
 ### Task 4: Extend Git service with new methods
 
 **Files:**
+
 - Modify: `src/services/Git.ts`
 - Modify: `src/domain/errors.ts` (add `WorktreeError`)
 
@@ -305,6 +311,7 @@ ogit commit -n
 ### Task 5: Add `suggestBranchName` to OgitAi
 
 **Files:**
+
 - Modify: `src/services/OgitAi.ts`
 
 - [ ] **Step 1: Import `BranchNameSuggestion` at the top of `src/services/OgitAi.ts`**
@@ -392,6 +399,7 @@ ogit commit -n
 ### Task 6: Create `ogit worktree create` command
 
 **Files:**
+
 - Create: `src/commands/worktree.ts`
 - Modify: `src/main.ts`
 
@@ -510,11 +518,13 @@ const create = Command.make("create", {}, () =>
             }
 
             // Stash everything
-            yield* git.stash().pipe(
-                Effect.mapError(
-                    () => new WorktreeError({ reason: "stash-failed", message: "Failed to stash changes." }),
-                ),
-            );
+            yield* git
+                .stash()
+                .pipe(
+                    Effect.mapError(
+                        () => new WorktreeError({ reason: "stash-failed", message: "Failed to stash changes." }),
+                    ),
+                );
 
             // Get AI suggestion — if it fails, pop stash to restore changes
             const suggestion = yield* suggestBranchNameFromDiff(diff).pipe(
@@ -532,37 +542,38 @@ const create = Command.make("create", {}, () =>
             yield* Console.log(`\nSuggested: ${suggestion.name}`);
             yield* Console.log(`Reason: ${suggestion.reasoning}\n`);
 
-            branchName = yield* Prompt.text({
-                message: "Branch name:",
-                default: suggestion.name,
-            });
+            branchName = yield* Prompt.text({ message: "Branch name:", default: suggestion.name });
         }
 
         // Sanitize and create worktree
         const dirName = sanitizeBranchName(branchName);
         const worktreePath = `${worktreesDir}/${dirName}`;
 
-        yield* git.worktreeAdd(worktreePath, branchName).pipe(
-            Effect.mapError(
-                () =>
-                    new WorktreeError({
-                        reason: "worktree-create-failed",
-                        message: `Failed to create worktree at ${worktreePath}`,
-                    }),
-            ),
-        );
-
-        // If dirty, pop stash into the new worktree
-        if (!isClean) {
-            yield* git.stashPopIn(worktreePath).pipe(
+        yield* git
+            .worktreeAdd(worktreePath, branchName)
+            .pipe(
                 Effect.mapError(
                     () =>
                         new WorktreeError({
-                            reason: "stash-pop-failed",
-                            message: `Worktree created at ${worktreePath} but stash pop failed. Run 'git -C ${worktreePath} stash pop' manually to resolve.`,
+                            reason: "worktree-create-failed",
+                            message: `Failed to create worktree at ${worktreePath}`,
                         }),
                 ),
             );
+
+        // If dirty, pop stash into the new worktree
+        if (!isClean) {
+            yield* git
+                .stashPopIn(worktreePath)
+                .pipe(
+                    Effect.mapError(
+                        () =>
+                            new WorktreeError({
+                                reason: "stash-pop-failed",
+                                message: `Worktree created at ${worktreePath} but stash pop failed. Run 'git -C ${worktreePath} stash pop' manually to resolve.`,
+                            }),
+                    ),
+                );
         }
 
         yield* Console.log(`\nWorktree created at ${worktreePath} on branch ${branchName}`);
@@ -646,6 +657,7 @@ ogit worktree create
 ```
 
 Enter a branch name like `feat/test-clean`. Verify:
+
 - `.worktrees/` directory created
 - `.worktrees` entry in `.gitignore`
 - Worktree at `.worktrees/feat-test-clean`
@@ -660,6 +672,7 @@ ogit worktree create
 ```
 
 Verify:
+
 - AI suggests a branch name with reasoning
 - User can accept or edit
 - Worktree created

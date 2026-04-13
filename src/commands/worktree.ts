@@ -88,16 +88,18 @@ const create = Command.make("create", {}, () =>
 
             // Get AI suggestion (before stashing, so Ctrl+C leaves working tree intact)
             const ogitAi = yield* OgitAi;
-            const chat = yield* ogitAi.createBranchNameChat(diff).pipe(
-                Effect.catchTag("OgitAiError", (error) =>
-                    Effect.fail(
-                        new WorktreeError({
-                            reason: "ai-failed-changes-restored",
-                            message: `AI suggestion failed: ${error.message}`,
-                        }),
+            const chat = yield* ogitAi
+                .createBranchNameChat(diff)
+                .pipe(
+                    Effect.catchTag("OgitAiError", (error) =>
+                        Effect.fail(
+                            new WorktreeError({
+                                reason: "ai-failed-changes-restored",
+                                message: `AI suggestion failed: ${error.message}`,
+                            }),
+                        ),
                     ),
-                ),
-            );
+                );
 
             let prompt: Array<{ role: "user"; content: string }> = [];
             let result = yield* chat.generateObject({
@@ -118,10 +120,7 @@ const create = Command.make("create", {}, () =>
                     branchName = result.value.name;
                     chosen = true;
                 } else if (action === "edit") {
-                    branchName = yield* Prompt.text({
-                        message: "Branch name:",
-                        default: result.value.name,
-                    });
+                    branchName = yield* Prompt.text({ message: "Branch name:", default: result.value.name });
                     chosen = true;
                 } else if (action === "regenerate") {
                     prompt = [{ role: "user", content: "Please try a different branch name." }];
@@ -151,38 +150,44 @@ const create = Command.make("create", {}, () =>
             }
 
             // Stash after user confirms (so Ctrl+C during prompt doesn't lose changes)
-            yield* git.stash().pipe(
-                Effect.mapError(
-                    () => new WorktreeError({ reason: "stash-failed", message: "Failed to stash changes." }),
-                ),
-            );
+            yield* git
+                .stash()
+                .pipe(
+                    Effect.mapError(
+                        () => new WorktreeError({ reason: "stash-failed", message: "Failed to stash changes." }),
+                    ),
+                );
         }
 
         // Sanitize and create worktree
         const dirName = sanitizeBranchName(branchName);
         const worktreePath = `${worktreesDir}/${dirName}`;
 
-        yield* git.worktreeAdd(worktreePath, branchName).pipe(
-            Effect.mapError(
-                () =>
-                    new WorktreeError({
-                        reason: "worktree-create-failed",
-                        message: `Failed to create worktree at ${worktreePath}`,
-                    }),
-            ),
-        );
-
-        // If dirty, pop stash into the new worktree
-        if (!isClean) {
-            yield* git.stashPopIn(worktreePath).pipe(
+        yield* git
+            .worktreeAdd(worktreePath, branchName)
+            .pipe(
                 Effect.mapError(
                     () =>
                         new WorktreeError({
-                            reason: "stash-pop-failed",
-                            message: `Worktree created at ${worktreePath} but stash pop failed. Run 'git -C ${worktreePath} stash pop' manually to resolve.`,
+                            reason: "worktree-create-failed",
+                            message: `Failed to create worktree at ${worktreePath}`,
                         }),
                 ),
             );
+
+        // If dirty, pop stash into the new worktree
+        if (!isClean) {
+            yield* git
+                .stashPopIn(worktreePath)
+                .pipe(
+                    Effect.mapError(
+                        () =>
+                            new WorktreeError({
+                                reason: "stash-pop-failed",
+                                message: `Worktree created at ${worktreePath} but stash pop failed. Run 'git -C ${worktreePath} stash pop' manually to resolve.`,
+                            }),
+                    ),
+                );
         }
 
         yield* Console.log(`\nWorktree created at ${worktreePath} on branch ${branchName}`);
@@ -233,9 +238,7 @@ const create = Command.make("create", {}, () =>
             }
             return Console.error(`Configuration error: ${error.message}`);
         }),
-        Effect.catchTag("ConfigError", () =>
-            Console.error("Configuration error. Check your ogit config files."),
-        ),
+        Effect.catchTag("ConfigError", () => Console.error("Configuration error. Check your ogit config files.")),
         Effect.catchTag("PlatformError", (error) => Console.error(`File system error: ${error.message}`)),
     ),
 ).pipe(Command.withDescription("Create a new worktree with a branch"));

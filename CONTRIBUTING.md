@@ -28,15 +28,15 @@ pnpm test
 
 ### Useful commands
 
-| Command | Description |
-|---------|-------------|
-| `pnpm build` | Compile TypeScript to `dist/` |
-| `pnpm dev` | Watch mode |
-| `pnpm test` | Run tests |
-| `pnpm typecheck` | Type-check without emitting |
-| `pnpm lint` | Lint with oxlint |
-| `pnpm fmt` | Format with oxfmt |
-| `pnpm fmt:check` | Check formatting |
+| Command          | Description                   |
+| ---------------- | ----------------------------- |
+| `pnpm build`     | Compile TypeScript to `dist/` |
+| `pnpm dev`       | Watch mode                    |
+| `pnpm test`      | Run tests                     |
+| `pnpm typecheck` | Type-check without emitting   |
+| `pnpm lint`      | Lint with oxlint              |
+| `pnpm fmt`       | Format with oxfmt             |
+| `pnpm fmt:check` | Check formatting              |
 
 ## Before submitting a PR
 

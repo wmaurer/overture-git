@@ -2,16 +2,16 @@
     "hooks": {
         "PreToolUse": [
             {
-                "matcher": "Bash",
+                "matcher": "Bash(git commit:*)",
                 "hooks": [
                     {
                         "type": "command",
-                        "if": "Bash(git commit:*)",
                         "command": "echo '{\"decision\": \"block\", \"reason\": \"Use ogit commit -n instead of git commit. Stage files with git add first, then run ogit commit -n to generate an AI-powered commit message.\"}'",
                         "statusMessage": "Checking for git commit..."
                     }
                 ]
             }
-        ]
+        ],
+        "Stop": [{ "hooks": [{ "type": "command", "command": "pnpm fmt && pnpm lint && pnpm typecheck" }] }]
     }
 }

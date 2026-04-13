@@ -8,9 +8,9 @@ import { ConfigSetupError, GitError } from "../domain/errors.ts";
 import { parseBinaryFiles } from "../domain/parseBinaryFiles.ts";
 import { parseEditedMessage } from "../domain/parseEditedMessage.ts";
 import { parseStatus } from "../domain/parseStatus.ts";
-import { OgitAi, DEFAULT_COMMIT_SYSTEM_PROMPT } from "../services/OgitAi.ts";
 import { Editor } from "../services/Editor.ts";
 import { Git } from "../services/Git.ts";
+import { OgitAi, DEFAULT_COMMIT_SYSTEM_PROMPT } from "../services/OgitAi.ts";
 import { OgitConfigService } from "../services/OgitConfig.ts";
 
 type Action = "commit" | "regenerate" | "regenerate_with_feedback" | "edit" | "cancel";

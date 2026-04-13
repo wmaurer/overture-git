@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
+
 import { NodeServices, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
 import { Command } from "effect/unstable/cli";
 import { FetchHttpClient } from "effect/unstable/http";
-import { createRequire } from "node:module";
 
 import { commit } from "./commands/commit.ts";
 import { worktree } from "./commands/worktree.ts";
