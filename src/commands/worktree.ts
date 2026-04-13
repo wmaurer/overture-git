@@ -72,24 +72,16 @@ const create = Command.make("create", {}, () =>
                 yield* git.resetFiles(untrackedFiles);
             }
 
-            // Stash everything
-            yield* git.stash().pipe(
-                Effect.mapError(
-                    () => new WorktreeError({ reason: "stash-failed", message: "Failed to stash changes." }),
-                ),
-            );
-
-            // Get AI suggestion — if it fails, pop stash to restore changes
+            // Get AI suggestion (before stashing, so Ctrl+C leaves working tree intact)
             const ogitAi = yield* OgitAi;
             const suggestion = yield* ogitAi.suggestBranchName(diff).pipe(
                 Effect.catchTag("OgitAiError", (error) =>
-                    Effect.gen(function* () {
-                        yield* git.stashPopIn(repoRoot).pipe(Effect.ignore);
-                        return yield* new WorktreeError({
+                    Effect.fail(
+                        new WorktreeError({
                             reason: "ai-failed-changes-restored",
-                            message: `AI suggestion failed: ${error.message}. Your changes have been restored.`,
-                        });
-                    }),
+                            message: `AI suggestion failed: ${error.message}`,
+                        }),
+                    ),
                 ),
             );
 
@@ -100,6 +92,13 @@ const create = Command.make("create", {}, () =>
                 message: "Branch name:",
                 default: suggestion.name,
             });
+
+            // Stash after user confirms (so Ctrl+C during prompt doesn't lose changes)
+            yield* git.stash().pipe(
+                Effect.mapError(
+                    () => new WorktreeError({ reason: "stash-failed", message: "Failed to stash changes." }),
+                ),
+            );
         }
 
         // Sanitize and create worktree
