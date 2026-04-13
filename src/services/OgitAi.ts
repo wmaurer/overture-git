@@ -66,10 +66,38 @@ Rules:
 - Analyse the overall intent of the changes, not individual files
 - Pick the most prominent change type
 - The description should capture WHAT is being done, not HOW
+- Documentation files (.md, .mdx) are often supplementary to code changes — if code changes are present, base the branch name on the code, not the docs
 - Return exactly one suggestion`;
 
+const isDocFile = (filePath: string): boolean => /\.(md|mdx)$/i.test(filePath);
+
+const summarizeDiffForBranchName = (diff: string): string => {
+    const fileDiffs = diff.split(/(?=^diff --git )/m);
+    const codeDiffs: Array<string> = [];
+    const docFiles: Array<string> = [];
+
+    for (const section of fileDiffs) {
+        if (!section.trim()) continue;
+        const match = section.match(/^diff --git a\/(.+?) b\//);
+        if (match && isDocFile(match[1])) {
+            docFiles.push(match[1]);
+        } else {
+            codeDiffs.push(section);
+        }
+    }
+
+    // If all changes are docs, return the original diff so the AI can still name it properly
+    if (codeDiffs.length === 0) return diff;
+
+    let result = codeDiffs.join("");
+    if (docFiles.length > 0) {
+        result += `\n\n## Documentation files also changed (content omitted)\n${docFiles.map((f) => `- ${f}`).join("\n")}`;
+    }
+    return result;
+};
+
 const buildBranchNamePrompt = (diff: string): string =>
-    `Suggest a branch name for the following changes:\n\n## Diff\n${diff}`;
+    `Suggest a branch name for the following changes:\n\n## Diff\n${summarizeDiffForBranchName(diff)}`;
 
 export class OgitAi extends Context.Service<
     OgitAi,
