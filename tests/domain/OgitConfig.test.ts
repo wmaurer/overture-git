@@ -3,8 +3,7 @@ import { Schema } from "effect";
 
 import { OgitConfigSchema, type OgitConfig } from "../../src/domain/OgitConfig.ts";
 
-const decode = (input: unknown): OgitConfig =>
-    Schema.decodeUnknownSync(OgitConfigSchema)(input);
+const decode = (input: unknown): OgitConfig => Schema.decodeUnknownSync(OgitConfigSchema)(input);
 
 describe("OgitConfigSchema", () => {
     it("decodes a full config", () => {

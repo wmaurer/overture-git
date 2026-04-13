@@ -91,7 +91,19 @@ export class Git extends Context.Service<
                 return yield* run(["diff", "--numstat"]);
             });
 
-            return Git.of({ diffStaged, status, log, branch, commit, addFiles, addAll, diffFiles, intentToAdd, resetFiles, numstat });
+            return Git.of({
+                diffStaged,
+                status,
+                log,
+                branch,
+                commit,
+                addFiles,
+                addAll,
+                diffFiles,
+                intentToAdd,
+                resetFiles,
+                numstat,
+            });
         }),
     );
 }

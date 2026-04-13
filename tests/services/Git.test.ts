@@ -1,6 +1,6 @@
+import { NodeServices } from "@effect/platform-node";
 import { describe, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import { NodeServices } from "@effect/platform-node";
 
 import { Git } from "../../src/services/Git.ts";
 

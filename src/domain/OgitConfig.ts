@@ -5,7 +5,7 @@ const CommitConfigSchema = Schema.Struct({
 });
 
 export const OgitConfigSchema = Schema.Struct({
-    "api-key": Schema.optionalKey(Schema.String),
+    "api-key": Schema.optionalKey(Schema.Redacted(Schema.String)),
     model: Schema.optionalKey(Schema.String),
     commit: Schema.optionalKey(CommitConfigSchema),
 });

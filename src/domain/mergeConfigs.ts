@@ -6,7 +6,7 @@ export const mergeConfigs = (...configs: ReadonlyArray<OgitConfig>): OgitConfig 
         for (const [key, value] of Object.entries(config)) {
             if (value === undefined) continue;
             if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-                result[key] = { ...(result[key] as Record<string, unknown> ?? {}), ...value };
+                result[key] = { ...((result[key] as Record<string, unknown>) ?? {}), ...value };
             } else {
                 result[key] = value;
             }

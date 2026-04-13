@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 
 import { mergeConfigs } from "../../src/domain/mergeConfigs.ts";
+
 import type { OgitConfig } from "../../src/domain/OgitConfig.ts";
 
 describe("mergeConfigs", () => {

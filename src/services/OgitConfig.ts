@@ -1,24 +1,21 @@
-import { Config, Context, Effect, Layer, Option, Schema } from "effect";
+import { Config, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import envPaths from "env-paths";
 
+import { mergeConfigs } from "../domain/mergeConfigs.ts";
 import { OgitConfigSchema, type OgitConfig as OgitConfigType } from "../domain/OgitConfig.ts";
 import { parseKdlToObject } from "../domain/parseKdl.ts";
 import { findConfigFile } from "./findConfigFile.ts";
-import { mergeConfigs } from "../domain/mergeConfigs.ts";
 
 const GLOBAL_CONFIG_FILENAME = "config.kdl";
 
-const readAndParseKdl = Effect.fn("readAndParseKdl")(
-    function* (filePath: string) {
-        const fs = yield* FileSystem.FileSystem;
-        const content = yield* fs.readFileString(filePath);
-        const raw = parseKdlToObject(content);
-        return Schema.decodeUnknownSync(OgitConfigSchema)(raw);
-    },
-    Effect.option,
-);
+const readAndParseKdl = Effect.fn("readAndParseKdl")(function* (filePath: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const content = yield* fs.readFileString(filePath);
+    const raw = parseKdlToObject(content);
+    return Schema.decodeUnknownSync(OgitConfigSchema)(raw);
+}, Effect.option);
 
 export class OgitConfigService extends Context.Service<
     OgitConfigService,
@@ -26,7 +23,7 @@ export class OgitConfigService extends Context.Service<
         readonly config: OgitConfigType;
         readonly commitSystemPrompt: Option.Option<string>;
         readonly model: Option.Option<string>;
-        readonly apiKey: Option.Option<string>;
+        readonly apiKey: Option.Option<Redacted.Redacted<string>>;
     }
 >()("@ogit/Config") {
     static layer = (overrides: { model?: string }) =>
@@ -42,13 +39,13 @@ export class OgitConfigService extends Context.Service<
                 // 2. Per-repo config (walk up from cwd)
                 const cwd = path.resolve();
                 const localPath = yield* findConfigFile(cwd);
-                const localConfig = Option.isSome(localPath) ? yield* readAndParseKdl(localPath.value) : Option.none<OgitConfigType>();
+                const localConfig = Option.isSome(localPath)
+                    ? yield* readAndParseKdl(localPath.value)
+                    : Option.none<OgitConfigType>();
 
                 // 3. Env var overrides (api-key only)
-                const envApiKey = yield* Config.option(Config.string("OGIT_API_KEY"));
-                const envConfig: OgitConfigType = Option.isSome(envApiKey)
-                    ? { "api-key": envApiKey.value }
-                    : {};
+                const envApiKey = yield* Config.option(Config.redacted("OGIT_API_KEY"));
+                const envConfig: OgitConfigType = Option.isSome(envApiKey) ? { "api-key": envApiKey.value } : {};
 
                 // 4. CLI flag overrides
                 const cliConfig: OgitConfigType = overrides.model ? { model: overrides.model } : {};

@@ -1,13 +1,16 @@
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
-import { Config, Console, Effect, Layer, Option, Redacted } from "effect";
+import { Config, Console, Effect, Layer, Option } from "effect";
 import { Command, Flag, Prompt } from "effect/unstable/cli";
-import { FetchHttpClient } from "effect/unstable/http";
+
+import envPaths from "env-paths";
+
+
 
 import { CommitMessage, GitContext } from "../domain/CommitMessage.ts";
+import { ConfigSetupError, GitError } from "../domain/errors.ts";
 import { parseBinaryFiles } from "../domain/parseBinaryFiles.ts";
 import { parseEditedMessage } from "../domain/parseEditedMessage.ts";
 import { parseStatus } from "../domain/parseStatus.ts";
-import { GitError } from "../domain/errors.ts";
 import { CommitAi, DEFAULT_COMMIT_SYSTEM_PROMPT } from "../services/CommitAi.ts";
 import { Editor } from "../services/Editor.ts";
 import { Git } from "../services/Git.ts";
@@ -43,7 +46,10 @@ const autoStage = Effect.fn("autoStage")(function* () {
     const files = parseStatus(status);
 
     if (files.length === 0) {
-        return yield* new GitError({ reason: "nothing_staged", message: "No changes to commit." });
+        return yield* new GitError({
+            reason: "nothing_staged",
+            message: "No changes to commit.",
+        });
     }
 
     // 2. AI triage — classify files by name
@@ -132,10 +138,12 @@ export const commit = Command.make(
         ),
     },
     (config) => {
-        const ogitConfigLayer = OgitConfigService.layer(Option.match(config.model, {
-            onNone: () => ({}),
-            onSome: (model) => ({ model }),
-        }));
+        const ogitConfigLayer = OgitConfigService.layer(
+            Option.match(config.model, {
+                onNone: () => ({}),
+                onSome: (model) => ({ model }),
+            }),
+        );
 
         if (config.showPrompt) {
             return Effect.gen(function* () {
@@ -148,7 +156,12 @@ export const commit = Command.make(
                     yield* Console.log("\nCustom system prompt (from config):\n");
                     yield* Console.log(ogitConfig.commitSystemPrompt.value);
                 }
-            }).pipe(Effect.provide(ogitConfigLayer));
+            }).pipe(
+                Effect.provide(ogitConfigLayer),
+                Effect.catchTag("ConfigError", () =>
+                    Console.error("Configuration error. Check your ogit config files."),
+                ),
+            );
         }
 
         return Effect.gen(function* () {
@@ -184,16 +197,20 @@ export const commit = Command.make(
             const context = new GitContext({ diff, branch, status, recentCommits });
 
             // 3. Create chat session (with optional system prompt from config)
-            const chat = yield* commitAi.createChat(
-                context,
-                Option.getOrUndefined(ogitConfig.commitSystemPrompt),
-            );
+            const chat = yield* commitAi.createChat(context, Option.getOrUndefined(ogitConfig.commitSystemPrompt));
 
             // 4. Initial generation
             yield* Console.log("Generating commit message...");
             let prompt: Array<{ role: "user"; content: string }> = [];
-            const initial = yield* chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage });
-            let current = { subject: initial.value.subjectLine, body: initial.value.body };
+            const initial = yield* chat.generateObject({
+                objectName: "commit_message",
+                prompt,
+                schema: CommitMessage,
+            });
+            let current = {
+                subject: initial.value.subjectLine,
+                body: initial.value.body,
+            };
             yield* displayRaw(current);
 
             // Non-interactive: commit immediately and exit
@@ -232,15 +249,24 @@ export const commit = Command.make(
                 }
 
                 if (action === "regenerate_with_feedback") {
-                    const feedback = yield* Prompt.text({ message: "What should be different?" });
+                    const feedback = yield* Prompt.text({
+                        message: "What should be different?",
+                    });
                     prompt = [{ role: "user", content: feedback }];
                 } else {
                     prompt = [{ role: "user", content: "Please try a different commit message." }];
                 }
 
                 yield* Console.log("Generating commit message...");
-                const response = yield* chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage });
-                current = { subject: response.value.subjectLine, body: response.value.body };
+                const response = yield* chat.generateObject({
+                    objectName: "commit_message",
+                    prompt,
+                    schema: CommitMessage,
+                });
+                current = {
+                    subject: response.value.subjectLine,
+                    body: response.value.body,
+                };
                 yield* displayRaw(current);
             }
         }).pipe(
@@ -260,16 +286,20 @@ export const commit = Command.make(
                         Layer.unwrap(
                             Effect.gen(function* () {
                                 const ogitConfig = yield* OgitConfigService;
+                                const envApiKey = yield* Config.option(Config.redacted("OGIT_API_KEY"));
+
+                                const apiKey = Option.orElse(envApiKey, () => ogitConfig.apiKey);
+                                if (Option.isNone(apiKey)) {
+                                    return yield* new ConfigSetupError({
+                                        reason: "missing_api_key",
+                                        message: "No API key found",
+                                        globalConfigPath: `${envPaths("ogit", { suffix: "" }).config}/config.kdl`,
+                                    });
+                                }
+
                                 return AnthropicClient.layerConfig({
-                                    apiKey: Config.redacted("OGIT_API_KEY").pipe(
-                                        Config.orElse(() =>
-                                            Option.match(ogitConfig.apiKey, {
-                                                onNone: () => Config.redacted("OGIT_API_KEY"),
-                                                onSome: (key) => Config.succeed(Redacted.make(key)),
-                                            }),
-                                        ),
-                                    ),
-                                }).pipe(Layer.provide(FetchHttpClient.layer));
+                                    apiKey: Config.succeed(apiKey.value),
+                                });
                             }),
                         ),
                     ),
@@ -279,6 +309,17 @@ export const commit = Command.make(
             Effect.catchTag("GitError", (error) => Console.error(error.message)),
             Effect.catchTag("CommitAiError", (error) => Console.error(`AI error: ${error.message}`)),
             Effect.catchTag("EditorError", (error) => Console.error(`Editor error: ${error.message}`)),
+            Effect.catchTag("ConfigSetupError", (error) => {
+                if (error.reason === "missing_api_key") {
+                    return Console.error(
+                        "Missing API key. Set it using one of:\n" +
+                            '  - Environment variable: export OGIT_API_KEY="your-key"\n' +
+                            `  - Global config: add api-key "your-key" to ${error.globalConfigPath}\n` +
+                            '  - Local config: add api-key "your-key" to .ogit.kdl in your repo',
+                    );
+                }
+                return Console.error(`Configuration error: ${error.message}`);
+            }),
         );
     },
 ).pipe(Command.withDescription("Generate and create a conventional commit from staged changes"));

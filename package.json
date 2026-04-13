@@ -5,11 +5,11 @@
     "keywords": [],
     "license": "ISC",
     "author": "",
-    "type": "module",
-    "main": "dist/main.js",
     "bin": {
         "ogit": "dist/main.js"
     },
+    "type": "module",
+    "main": "dist/main.js",
     "scripts": {
         "prepare": "effect-language-service patch",
         "build": "tsc",

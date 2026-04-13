@@ -1,9 +1,9 @@
 import { Context, Effect, Layer } from "effect";
 import { Chat, LanguageModel } from "effect/unstable/ai";
 
-import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
 import { GitContext } from "../domain/CommitMessage.ts";
 import { CommitAiError } from "../domain/errors.ts";
+import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
 
 export const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
 
@@ -94,12 +94,14 @@ export class CommitAi extends Context.Service<
                         { role: "system", content: triageSystemPrompt },
                         { role: "user", content: buildTriagePrompt(files, branch) },
                     ]);
-                    const result = yield* chat.generateObject({ objectName: "file_triage", prompt: [], schema: FileTriage });
+                    const result = yield* chat.generateObject({
+                        objectName: "file_triage",
+                        prompt: [],
+                        schema: FileTriage,
+                    });
                     return result.value;
                 },
-                Effect.mapError(
-                    (error) => new CommitAiError({ reason: "generation_failed", message: String(error) }),
-                ),
+                Effect.mapError((error) => new CommitAiError({ reason: "generation_failed", message: String(error) })),
             ),
 
             analyseFiles: Effect.fn("CommitAi.analyseFiles")(
@@ -108,12 +110,14 @@ export class CommitAi extends Context.Service<
                         { role: "system", content: analysisSystemPrompt },
                         { role: "user", content: buildAnalysisPrompt(diff, branch) },
                     ]);
-                    const result = yield* chat.generateObject({ objectName: "file_analysis", prompt: [], schema: FileAnalysis });
+                    const result = yield* chat.generateObject({
+                        objectName: "file_analysis",
+                        prompt: [],
+                        schema: FileAnalysis,
+                    });
                     return result.value;
                 },
-                Effect.mapError(
-                    (error) => new CommitAiError({ reason: "generation_failed", message: String(error) }),
-                ),
+                Effect.mapError((error) => new CommitAiError({ reason: "generation_failed", message: String(error) })),
             ),
         }),
     );

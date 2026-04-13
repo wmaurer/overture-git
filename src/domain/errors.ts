@@ -14,3 +14,9 @@ export class EditorError extends Schema.TaggedErrorClass<EditorError>()("EditorE
     reason: Schema.Literals(["editor_failed"]),
     message: Schema.String,
 }) {}
+
+export class ConfigSetupError extends Schema.TaggedErrorClass<ConfigSetupError>()("ConfigSetupError", {
+    reason: Schema.Literals(["missing_api_key"]),
+    message: Schema.String,
+    globalConfigPath: Schema.String,
+}) {}
