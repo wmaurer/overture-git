@@ -20,3 +20,13 @@ export class ConfigSetupError extends Schema.TaggedErrorClass<ConfigSetupError>(
     message: Schema.String,
     globalConfigPath: Schema.String,
 }) {}
+
+export class WorktreeError extends Schema.TaggedErrorClass<WorktreeError>()("WorktreeError", {
+    reason: Schema.Literals([
+        "stash-failed",
+        "worktree-create-failed",
+        "stash-pop-failed",
+        "ai-failed-changes-restored",
+    ]),
+    message: Schema.String,
+}) {}

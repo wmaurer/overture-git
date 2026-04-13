@@ -17,6 +17,11 @@ export class Git extends Context.Service<
         readonly intentToAdd: (paths: ReadonlyArray<string>) => Effect.Effect<void, GitError>;
         readonly resetFiles: (paths: ReadonlyArray<string>) => Effect.Effect<void, GitError>;
         readonly numstat: () => Effect.Effect<string, GitError>;
+        readonly stash: () => Effect.Effect<void, GitError>;
+        readonly stashPopIn: (cwd: string) => Effect.Effect<void, GitError>;
+        readonly worktreeAdd: (path: string, branch: string) => Effect.Effect<void, GitError>;
+        readonly diffAll: () => Effect.Effect<string, GitError>;
+        readonly repoRoot: () => Effect.Effect<string, GitError>;
     }
 >()("@overture/Git") {
     static layer = Layer.effect(
@@ -93,6 +98,26 @@ export class Git extends Context.Service<
                 return yield* run(["diff", "--numstat"]);
             });
 
+            const stash = Effect.fn("Git.stash")(function* () {
+                yield* run(["stash", "--include-untracked"]);
+            });
+
+            const stashPopIn = Effect.fn("Git.stashPopIn")(function* (cwd: string) {
+                yield* run(["-C", cwd, "stash", "pop"]);
+            });
+
+            const worktreeAdd = Effect.fn("Git.worktreeAdd")(function* (path: string, branch: string) {
+                yield* run(["worktree", "add", "-b", branch, path]);
+            });
+
+            const diffAll = Effect.fn("Git.diffAll")(function* () {
+                return yield* run(["diff", "HEAD"]).pipe(Effect.orElseSucceed(() => ""));
+            });
+
+            const repoRoot = Effect.fn("Git.repoRoot")(function* () {
+                return yield* run(["rev-parse", "--show-toplevel"]).pipe(Effect.map((s) => s.trim()));
+            });
+
             return Git.of({
                 diffStaged,
                 status,
@@ -105,6 +130,11 @@ export class Git extends Context.Service<
                 intentToAdd,
                 resetFiles,
                 numstat,
+                stash,
+                stashPopIn,
+                worktreeAdd,
+                diffAll,
+                repoRoot,
             });
         }),
     );
