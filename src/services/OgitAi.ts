@@ -1,7 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 import { Chat, LanguageModel } from "effect/unstable/ai";
 
-import { BranchNameSuggestion } from "../domain/BranchNameSuggestion.ts";
 import { GitContext } from "../domain/CommitMessage.ts";
 import { OgitAiError } from "../domain/errors.ts";
 import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
@@ -111,9 +110,9 @@ export class OgitAi extends Context.Service<
             diff: string,
             branch: string,
         ) => Effect.Effect<FileAnalysis, OgitAiError, LanguageModel.LanguageModel>;
-        readonly suggestBranchName: (
+        readonly createBranchNameChat: (
             diff: string,
-        ) => Effect.Effect<BranchNameSuggestion, OgitAiError, LanguageModel.LanguageModel>;
+        ) => Effect.Effect<Chat.Service, OgitAiError, LanguageModel.LanguageModel>;
     }
 >()("@overture/OgitAi") {
     static layer = Layer.succeed(
@@ -161,18 +160,12 @@ export class OgitAi extends Context.Service<
                 Effect.mapError((error) => new OgitAiError({ reason: "generation_failed", message: String(error) })),
             ),
 
-            suggestBranchName: Effect.fn("OgitAi.suggestBranchName")(
+            createBranchNameChat: Effect.fn("OgitAi.createBranchNameChat")(
                 function* (diff: string) {
-                    const chat = yield* Chat.fromPrompt([
+                    return yield* Chat.fromPrompt([
                         { role: "system", content: branchNameSystemPrompt },
                         { role: "user", content: buildBranchNamePrompt(diff) },
                     ]);
-                    const result = yield* chat.generateObject({
-                        objectName: "branch_name_suggestion",
-                        prompt: [],
-                        schema: BranchNameSuggestion,
-                    });
-                    return result.value;
                 },
                 Effect.mapError((error) => new OgitAiError({ reason: "generation_failed", message: String(error) })),
             ),

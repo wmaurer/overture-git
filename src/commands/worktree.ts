@@ -3,12 +3,26 @@ import { Config, Console, Effect, FileSystem, Layer, Option } from "effect";
 import { Command, Prompt } from "effect/unstable/cli";
 import envPaths from "env-paths";
 
+import { BranchNameSuggestion } from "../domain/BranchNameSuggestion.ts";
 import { ConfigSetupError, WorktreeError } from "../domain/errors.ts";
 import { parseStatus } from "../domain/parseStatus.ts";
 import { sanitizeBranchName } from "../domain/sanitizeBranchName.ts";
 import { Git } from "../services/Git.ts";
 import { OgitAi } from "../services/OgitAi.ts";
 import { OgitConfigService } from "../services/OgitConfig.ts";
+
+type WorktreeAction = "accept" | "regenerate" | "regenerate_with_feedback" | "edit" | "cancel";
+
+const worktreeActionMenu = Prompt.select<WorktreeAction>({
+    message: "What would you like to do?",
+    choices: [
+        { title: "Accept", value: "accept" },
+        { title: "Edit", value: "edit" },
+        { title: "Regenerate", value: "regenerate" },
+        { title: "Regenerate with feedback", value: "regenerate_with_feedback" },
+        { title: "Cancel", value: "cancel" },
+    ],
+});
 
 const ensureWorktreesDir = Effect.fn("ensureWorktreesDir")(function* (repoRoot: string) {
     const fs = yield* FileSystem.FileSystem;
@@ -45,7 +59,7 @@ const create = Command.make("create", {}, () =>
         const files = parseStatus(status);
         const isClean = files.length === 0;
 
-        let branchName: string;
+        let branchName = "";
 
         if (isClean) {
             // Clean path: just ask for a branch name
@@ -74,7 +88,7 @@ const create = Command.make("create", {}, () =>
 
             // Get AI suggestion (before stashing, so Ctrl+C leaves working tree intact)
             const ogitAi = yield* OgitAi;
-            const suggestion = yield* ogitAi.suggestBranchName(diff).pipe(
+            const chat = yield* ogitAi.createBranchNameChat(diff).pipe(
                 Effect.catchTag("OgitAiError", (error) =>
                     Effect.fail(
                         new WorktreeError({
@@ -85,13 +99,56 @@ const create = Command.make("create", {}, () =>
                 ),
             );
 
-            yield* Console.log(`\nSuggested: ${suggestion.name}`);
-            yield* Console.log(`Reason: ${suggestion.reasoning}\n`);
-
-            branchName = yield* Prompt.text({
-                message: "Branch name:",
-                default: suggestion.name,
+            let prompt: Array<{ role: "user"; content: string }> = [];
+            let result = yield* chat.generateObject({
+                objectName: "branch_name_suggestion",
+                prompt,
+                schema: BranchNameSuggestion,
             });
+
+            yield* Console.log(`\nSuggested: ${result.value.name}`);
+            yield* Console.log(`Reason: ${result.value.reasoning}\n`);
+
+            // Action loop: let user accept, edit, regenerate, or cancel
+            let chosen = false;
+            while (!chosen) {
+                const action: WorktreeAction = yield* worktreeActionMenu;
+
+                if (action === "accept") {
+                    branchName = result.value.name;
+                    chosen = true;
+                } else if (action === "edit") {
+                    branchName = yield* Prompt.text({
+                        message: "Branch name:",
+                        default: result.value.name,
+                    });
+                    chosen = true;
+                } else if (action === "regenerate") {
+                    prompt = [{ role: "user", content: "Please try a different branch name." }];
+                    yield* Console.log("Generating branch name...");
+                    result = yield* chat.generateObject({
+                        objectName: "branch_name_suggestion",
+                        prompt,
+                        schema: BranchNameSuggestion,
+                    });
+                    yield* Console.log(`\nSuggested: ${result.value.name}`);
+                    yield* Console.log(`Reason: ${result.value.reasoning}\n`);
+                } else if (action === "regenerate_with_feedback") {
+                    const feedback = yield* Prompt.text({ message: "What should be different?" });
+                    prompt = [{ role: "user", content: feedback }];
+                    yield* Console.log("Generating branch name...");
+                    result = yield* chat.generateObject({
+                        objectName: "branch_name_suggestion",
+                        prompt,
+                        schema: BranchNameSuggestion,
+                    });
+                    yield* Console.log(`\nSuggested: ${result.value.name}`);
+                    yield* Console.log(`Reason: ${result.value.reasoning}\n`);
+                } else {
+                    yield* Console.log("Cancelled.");
+                    return;
+                }
+            }
 
             // Stash after user confirms (so Ctrl+C during prompt doesn't lose changes)
             yield* git.stash().pipe(
