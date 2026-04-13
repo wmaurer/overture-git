@@ -15,13 +15,24 @@ Git workflow tools powered by AI. `ogit` generates conventional commit messages 
 ## Installation
 
 ```bash
-pnpm install
-pnpm build
+npm install -g @wmaurer/overture-git
 ```
 
-This makes the `ogit` command available via the `bin` entry in `package.json`. You can link it globally:
+This installs the `ogit` command globally. You can also use pnpm or yarn:
 
 ```bash
+pnpm add -g @wmaurer/overture-git
+# or
+yarn global add @wmaurer/overture-git
+```
+
+### From source
+
+```bash
+git clone https://github.com/wmaurer/overture-git.git
+cd overture-git
+pnpm install
+pnpm build
 pnpm link --global
 ```
 
