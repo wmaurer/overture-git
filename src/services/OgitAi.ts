@@ -1,6 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 import { Chat, LanguageModel } from "effect/unstable/ai";
 
+import { BranchNameSuggestion } from "../domain/BranchNameSuggestion.ts";
 import { GitContext } from "../domain/CommitMessage.ts";
 import { OgitAiError } from "../domain/errors.ts";
 import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
@@ -55,6 +56,21 @@ Rules:
 const buildAnalysisPrompt = (diff: string, branch: string): string =>
     `Analyse the following diff from branch "${branch}" and determine which files belong together in a single commit.\n\n## Diff\n${diff}`;
 
+const branchNameSystemPrompt = `You are a branch name assistant. Given a git diff, suggest a single conventional branch name.
+
+Format: <type>/<short-description>
+- type: one of feat, fix, refactor, chore, docs, test, perf, style
+- short-description: concise, kebab-case, max 4 words
+
+Rules:
+- Analyse the overall intent of the changes, not individual files
+- Pick the most prominent change type
+- The description should capture WHAT is being done, not HOW
+- Return exactly one suggestion`;
+
+const buildBranchNamePrompt = (diff: string): string =>
+    `Suggest a branch name for the following changes:\n\n## Diff\n${diff}`;
+
 export class OgitAi extends Context.Service<
     OgitAi,
     {
@@ -67,6 +83,9 @@ export class OgitAi extends Context.Service<
             diff: string,
             branch: string,
         ) => Effect.Effect<FileAnalysis, OgitAiError, LanguageModel.LanguageModel>;
+        readonly suggestBranchName: (
+            diff: string,
+        ) => Effect.Effect<BranchNameSuggestion, OgitAiError, LanguageModel.LanguageModel>;
     }
 >()("@overture/OgitAi") {
     static layer = Layer.succeed(
@@ -108,6 +127,22 @@ export class OgitAi extends Context.Service<
                         objectName: "file_analysis",
                         prompt: [],
                         schema: FileAnalysis,
+                    });
+                    return result.value;
+                },
+                Effect.mapError((error) => new OgitAiError({ reason: "generation_failed", message: String(error) })),
+            ),
+
+            suggestBranchName: Effect.fn("OgitAi.suggestBranchName")(
+                function* (diff: string) {
+                    const chat = yield* Chat.fromPrompt([
+                        { role: "system", content: branchNameSystemPrompt },
+                        { role: "user", content: buildBranchNamePrompt(diff) },
+                    ]);
+                    const result = yield* chat.generateObject({
+                        objectName: "branch_name_suggestion",
+                        prompt: [],
+                        schema: BranchNameSuggestion,
                     });
                     return result.value;
                 },
