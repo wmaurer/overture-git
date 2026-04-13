@@ -107,10 +107,7 @@ describe("CommitAi", () => {
 let triageCallCount = 0;
 
 const makeTriageJson = () =>
-    JSON.stringify({
-        analyse: ["src/index.ts", "src/utils.ts"],
-        skip: [{ path: "output.log", reason: "log file" }],
-    });
+    JSON.stringify({ analyse: ["src/index.ts", "src/utils.ts"], skip: [{ path: "output.log", reason: "log file" }] });
 
 const makeAnalysisJson = (allRelevant: boolean) =>
     JSON.stringify(

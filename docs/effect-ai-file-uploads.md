@@ -66,16 +66,12 @@ Combine text and file parts in a single user message:
 ```ts
 const message = Prompt.makeMessage("user", {
     content: [
-        Prompt.makePart("text", {
-            text: "Summarize the key findings in this PDF",
-        }),
+        Prompt.makePart("text", { text: "Summarize the key findings in this PDF" }),
         Prompt.makePart("file", {
             mediaType: "application/pdf",
             fileName: "report.pdf",
             data: pdfBytes,
-            anthropic: {
-                citations: { enabled: true },
-            },
+            anthropic: { citations: { enabled: true } },
         }),
     ],
 });

@@ -108,11 +108,11 @@ commit {
 
 ### Config options
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `api-key` | string | Anthropic API key (also via `OGIT_API_KEY` env var) |
-| `model` | string | Anthropic model to use (default: `claude-haiku-4-5`) |
-| `commit { system-prompt }` | string | Custom system prompt that replaces the default |
+| Key                        | Type   | Description                                          |
+| -------------------------- | ------ | ---------------------------------------------------- |
+| `api-key`                  | string | Anthropic API key (also via `OGIT_API_KEY` env var)  |
+| `model`                    | string | Anthropic model to use (default: `claude-haiku-4-5`) |
+| `commit { system-prompt }` | string | Custom system prompt that replaces the default       |
 
 ### API key
 
@@ -138,16 +138,13 @@ In your project's `.claude/settings.json`:
 
 ```json
 {
-  "hooks": {
-    "Bash": {
-      "pre": [
-        {
-          "match": "^git commit",
-          "command": "echo 'BLOCKED: Use ogit commit instead of git commit' && exit 1"
+    "hooks": {
+        "Bash": {
+            "pre": [
+                { "match": "^git commit", "command": "echo 'BLOCKED: Use ogit commit instead of git commit' && exit 1" }
+            ]
         }
-      ]
     }
-  }
 }
 ```
 
@@ -172,6 +169,34 @@ Never use `git commit` directly. After staging files with `git add`, always use 
 5. ogit analyzes the staged diff, generates a commit message, and commits
 
 The `CLAUDE.md` instruction reduces wasted attempts — Claude will use `ogit commit` directly without hitting the hook.
+
+## Shell Completions
+
+ogit supports tab completions for Bash, Zsh, and Fish.
+
+### Bash
+
+```bash
+ogit --completions bash >> ~/.bashrc
+```
+
+### Zsh
+
+```bash
+ogit --completions zsh > ~/.zsh/completions/_ogit
+```
+
+Then add `~/.zsh/completions` to your `fpath` in `~/.zshrc`:
+
+```bash
+fpath=(~/.zsh/completions $fpath)
+```
+
+### Fish
+
+```bash
+ogit --completions fish > ~/.config/fish/completions/ogit.fish
+```
 
 ## Built With
 

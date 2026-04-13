@@ -6,9 +6,7 @@ import { EditorError } from "../domain/errors.ts";
 
 export class Editor extends Context.Service<
     Editor,
-    {
-        readonly open: (content: string) => Effect.Effect<string, EditorError>;
-    }
+    { readonly open: (content: string) => Effect.Effect<string, EditorError> }
 >()("@overture/Editor") {
     static layer = Layer.effect(
         Editor,

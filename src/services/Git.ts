@@ -25,15 +25,17 @@ export class Git extends Context.Service<
             const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
             const run = Effect.fn("Git.run")(function* (args: ReadonlyArray<string>) {
-                return yield* spawner.string(ChildProcess.make("git", args)).pipe(
-                    Effect.mapError(
-                        (error) =>
-                            new GitError({
-                                reason: "command_failed",
-                                message: `git ${args.join(" ")}: ${error.message}`,
-                            }),
-                    ),
-                );
+                return yield* spawner
+                    .string(ChildProcess.make("git", args))
+                    .pipe(
+                        Effect.mapError(
+                            (error) =>
+                                new GitError({
+                                    reason: "command_failed",
+                                    message: `git ${args.join(" ")}: ${error.message}`,
+                                }),
+                        ),
+                    );
             });
 
             const diffStaged = Effect.fn("Git.diffStaged")(function* () {

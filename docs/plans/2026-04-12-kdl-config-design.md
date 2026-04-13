@@ -34,17 +34,17 @@ commit {
 2. **Environment variables** (`OGIT_API_KEY` — API key only)
 3. **Nearest `.ogit.kdl`** — walk up from cwd to filesystem root
 4. **Global config** — OS-appropriate path via `env-paths("ogit")`:
-   - Linux: `~/.config/ogit/config.kdl`
-   - macOS: `~/Library/Preferences/ogit/config.kdl`
-   - Windows: `%APPDATA%\ogit\Config\config.kdl`
+    - Linux: `~/.config/ogit/config.kdl`
+    - macOS: `~/Library/Preferences/ogit/config.kdl`
+    - Windows: `%APPDATA%\ogit\Config\config.kdl`
 
 ## Config Keys (initial)
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `api-key` | string (optional) | Anthropic API key. Env var `OGIT_API_KEY` takes priority. |
-| `model` | string (optional) | Default model name. CLI `--model` takes priority. |
-| `commit.system-prompt` | string (optional) | **Replaces** the default commit system prompt entirely. |
+| Key                    | Type              | Description                                               |
+| ---------------------- | ----------------- | --------------------------------------------------------- |
+| `api-key`              | string (optional) | Anthropic API key. Env var `OGIT_API_KEY` takes priority. |
+| `model`                | string (optional) | Default model name. CLI `--model` takes priority.         |
+| `commit.system-prompt` | string (optional) | **Replaces** the default commit system prompt entirely.   |
 
 Additional keys will be added later as needed.
 
@@ -67,6 +67,7 @@ class OgitConfig extends Context.Service<OgitConfig, {
 ```
 
 The layer:
+
 1. Resolve global config path via `env-paths` (wrapped in `Effect.try`)
 2. Walk up from cwd to find nearest `.ogit.kdl`
 3. Parse each KDL file with `@bgotink/kdl` → small transformer → plain object

@@ -6,6 +6,7 @@
     "trailingComma": "all",
     "arrowParens": "always",
     "endOfLine": "lf",
+    "objectWrap": "collapse",
     "sortImports": {
         "newlinesBetween": true,
         "groups": [

@@ -7,10 +7,7 @@ export class CommitMessage extends Schema.Class<CommitMessage>("CommitMessage")(
     bullets: Schema.Array(Schema.String),
 }) {
     get subjectLine(): string {
-        const scopePart = Option.match(this.scope, {
-            onNone: () => "",
-            onSome: (s) => `(${s})`,
-        });
+        const scopePart = Option.match(this.scope, { onNone: () => "", onSome: (s) => `(${s})` });
         return `${this.type}${scopePart}: ${this.subject}`;
     }
 

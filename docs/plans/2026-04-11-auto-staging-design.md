@@ -52,12 +52,12 @@ Output: structured grouping — which files are relevant to the main change and 
 
 ```typescript
 class FileAnalysis {
-  allRelevant: boolean
-  relevant: string[]          // file paths
-  irrelevant: Array<{
-    path: string
-    reason: string            // brief explanation
-  }>
+    allRelevant: boolean;
+    relevant: string[]; // file paths
+    irrelevant: Array<{
+        path: string;
+        reason: string; // brief explanation
+    }>;
 }
 ```
 
@@ -75,16 +75,16 @@ Simple yes/no — not per-file. For finer control, the user can `git add` manual
 
 ## New components
 
-| Component              | Location               | Purpose                                      |
-|------------------------|------------------------|----------------------------------------------|
-| `FileTriage` schema    | `domain/CommitMessage.ts` | AI response for file classification        |
-| `FileAnalysis` schema  | `domain/CommitMessage.ts` | AI response for relevance grouping         |
-| `CommitAi.triageFiles()` | `services/CommitAi.ts` | File list --> analyse/skip classification  |
-| `CommitAi.analyseFiles()` | `services/CommitAi.ts` | Diffs --> relevant/irrelevant grouping    |
-| `Git.diffFiles()`      | `services/Git.ts`      | Diff specific files (including untracked)    |
-| `Git.addFiles()`       | `services/Git.ts`      | Stage specific file paths                    |
-| `Git.addAll()`         | `services/Git.ts`      | Stage everything (for non-interactive)       |
-| `autoStage()`          | `commands/commit.ts`   | Orchestrates triage --> analysis --> staging  |
+| Component                 | Location                  | Purpose                                      |
+| ------------------------- | ------------------------- | -------------------------------------------- |
+| `FileTriage` schema       | `domain/CommitMessage.ts` | AI response for file classification          |
+| `FileAnalysis` schema     | `domain/CommitMessage.ts` | AI response for relevance grouping           |
+| `CommitAi.triageFiles()`  | `services/CommitAi.ts`    | File list --> analyse/skip classification    |
+| `CommitAi.analyseFiles()` | `services/CommitAi.ts`    | Diffs --> relevant/irrelevant grouping       |
+| `Git.diffFiles()`         | `services/Git.ts`         | Diff specific files (including untracked)    |
+| `Git.addFiles()`          | `services/Git.ts`         | Stage specific file paths                    |
+| `Git.addAll()`            | `services/Git.ts`         | Stage everything (for non-interactive)       |
+| `autoStage()`             | `commands/commit.ts`      | Orchestrates triage --> analysis --> staging |
 
 ## What stays unchanged
 

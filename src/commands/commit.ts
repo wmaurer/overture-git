@@ -1,10 +1,7 @@
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
 import { Config, Console, Effect, Layer, Option } from "effect";
 import { Command, Flag, Prompt } from "effect/unstable/cli";
-
 import envPaths from "env-paths";
-
-
 
 import { CommitMessage, GitContext } from "../domain/CommitMessage.ts";
 import { ConfigSetupError, GitError } from "../domain/errors.ts";
@@ -46,10 +43,7 @@ const autoStage = Effect.fn("autoStage")(function* () {
     const files = parseStatus(status);
 
     if (files.length === 0) {
-        return yield* new GitError({
-            reason: "nothing_staged",
-            message: "No changes to commit.",
-        });
+        return yield* new GitError({ reason: "nothing_staged", message: "No changes to commit." });
     }
 
     // 2. AI triage — classify files by name
@@ -57,10 +51,7 @@ const autoStage = Effect.fn("autoStage")(function* () {
     const triage = yield* commitAi.triageFiles(files, branch);
 
     if (triage.analyse.length === 0) {
-        return yield* new GitError({
-            reason: "nothing_staged",
-            message: "No files suitable for committing.",
-        });
+        return yield* new GitError({ reason: "nothing_staged", message: "No files suitable for committing." });
     }
 
     // 3. Filter out binary files
@@ -98,9 +89,7 @@ const autoStage = Effect.fn("autoStage")(function* () {
         }
         yield* Console.log("");
 
-        const exclude = yield* Prompt.confirm({
-            message: "Exclude them from this commit?",
-        });
+        const exclude = yield* Prompt.confirm({ message: "Exclude them from this commit?" });
 
         if (exclude) {
             yield* git.addFiles(analysis.relevant);
@@ -139,10 +128,7 @@ export const commit = Command.make(
     },
     (config) => {
         const ogitConfigLayer = OgitConfigService.layer(
-            Option.match(config.model, {
-                onNone: () => ({}),
-                onSome: (model) => ({ model }),
-            }),
+            Option.match(config.model, { onNone: () => ({}), onSome: (model) => ({ model }) }),
         );
 
         if (config.showPrompt) {
@@ -202,15 +188,8 @@ export const commit = Command.make(
             // 4. Initial generation
             yield* Console.log("Generating commit message...");
             let prompt: Array<{ role: "user"; content: string }> = [];
-            const initial = yield* chat.generateObject({
-                objectName: "commit_message",
-                prompt,
-                schema: CommitMessage,
-            });
-            let current = {
-                subject: initial.value.subjectLine,
-                body: initial.value.body,
-            };
+            const initial = yield* chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage });
+            let current = { subject: initial.value.subjectLine, body: initial.value.body };
             yield* displayRaw(current);
 
             // Non-interactive: commit immediately and exit
@@ -249,9 +228,7 @@ export const commit = Command.make(
                 }
 
                 if (action === "regenerate_with_feedback") {
-                    const feedback = yield* Prompt.text({
-                        message: "What should be different?",
-                    });
+                    const feedback = yield* Prompt.text({ message: "What should be different?" });
                     prompt = [{ role: "user", content: feedback }];
                 } else {
                     prompt = [{ role: "user", content: "Please try a different commit message." }];
@@ -263,10 +240,7 @@ export const commit = Command.make(
                     prompt,
                     schema: CommitMessage,
                 });
-                current = {
-                    subject: response.value.subjectLine,
-                    body: response.value.body,
-                };
+                current = { subject: response.value.subjectLine, body: response.value.body };
                 yield* displayRaw(current);
             }
         }).pipe(
@@ -297,9 +271,7 @@ export const commit = Command.make(
                                     });
                                 }
 
-                                return AnthropicClient.layerConfig({
-                                    apiKey: Config.succeed(apiKey.value),
-                                });
+                                return AnthropicClient.layerConfig({ apiKey: Config.succeed(apiKey.value) });
                             }),
                         ),
                     ),

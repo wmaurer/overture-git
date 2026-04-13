@@ -18,11 +18,7 @@
         "skipLibCheck": true,
         "outDir": "dist",
         "rootDir": "src",
-        "plugins": [
-            {
-                "name": "@effect/language-service"
-            }
-        ]
+        "plugins": [{ "name": "@effect/language-service" }]
     },
     "include": ["src"]
 }

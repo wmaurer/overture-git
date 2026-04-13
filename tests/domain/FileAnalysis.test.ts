@@ -5,10 +5,7 @@ import { FileAnalysis, FileTriage } from "../../src/domain/FileAnalysis.ts";
 
 describe("FileTriage", () => {
     it("parses valid triage response", () => {
-        const input = {
-            analyse: ["src/index.ts", "src/utils.ts"],
-            skip: [{ path: "output.log", reason: "log file" }],
-        };
+        const input = { analyse: ["src/index.ts", "src/utils.ts"], skip: [{ path: "output.log", reason: "log file" }] };
         const result = Schema.decodeUnknownSync(FileTriage)(input);
         expect(result.analyse).toEqual(["src/index.ts", "src/utils.ts"]);
         expect(result.skip).toHaveLength(1);
@@ -18,11 +15,7 @@ describe("FileTriage", () => {
 
 describe("FileAnalysis", () => {
     it("parses all-relevant response", () => {
-        const input = {
-            allRelevant: true,
-            relevant: ["src/index.ts", "src/utils.ts"],
-            irrelevant: [],
-        };
+        const input = { allRelevant: true, relevant: ["src/index.ts", "src/utils.ts"], irrelevant: [] };
         const result = Schema.decodeUnknownSync(FileAnalysis)(input);
         expect(result.allRelevant).toBe(true);
         expect(result.relevant).toEqual(["src/index.ts", "src/utils.ts"]);

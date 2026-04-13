@@ -13,6 +13,7 @@
 ### Task 1: Add new Git service methods
 
 **Files:**
+
 - Modify: `src/services/Git.ts:6-14` (service interface)
 - Modify: `src/services/Git.ts:33-58` (implementations)
 - Test: `tests/services/Git.test.ts` (create)
@@ -123,6 +124,7 @@ ogit commit -n
 ### Task 2: Add FileTriage and FileAnalysis schemas
 
 **Files:**
+
 - Modify: `src/domain/CommitMessage.ts:1-31`
 - Test: `tests/domain/FileAnalysis.test.ts` (create)
 
@@ -138,10 +140,7 @@ import { FileAnalysis, FileTriage } from "../../src/domain/CommitMessage.ts";
 
 describe("FileTriage", () => {
     it("parses valid triage response", () => {
-        const input = {
-            analyse: ["src/index.ts", "src/utils.ts"],
-            skip: [{ path: "output.log", reason: "log file" }],
-        };
+        const input = { analyse: ["src/index.ts", "src/utils.ts"], skip: [{ path: "output.log", reason: "log file" }] };
         const result = Schema.decodeUnknownSync(FileTriage)(input);
         expect(result.analyse).toEqual(["src/index.ts", "src/utils.ts"]);
         expect(result.skip).toHaveLength(1);
@@ -151,11 +150,7 @@ describe("FileTriage", () => {
 
 describe("FileAnalysis", () => {
     it("parses all-relevant response", () => {
-        const input = {
-            allRelevant: true,
-            relevant: ["src/index.ts", "src/utils.ts"],
-            irrelevant: [],
-        };
+        const input = { allRelevant: true, relevant: ["src/index.ts", "src/utils.ts"], irrelevant: [] };
         const result = Schema.decodeUnknownSync(FileAnalysis)(input);
         expect(result.allRelevant).toBe(true);
         expect(result.relevant).toEqual(["src/index.ts", "src/utils.ts"]);
@@ -188,23 +183,13 @@ Append to `src/domain/CommitMessage.ts` after the `GitContext` class:
 ```typescript
 export class FileTriage extends Schema.Class<FileTriage>("FileTriage")({
     analyse: Schema.Array(Schema.String),
-    skip: Schema.Array(
-        Schema.Struct({
-            path: Schema.String,
-            reason: Schema.String,
-        }),
-    ),
+    skip: Schema.Array(Schema.Struct({ path: Schema.String, reason: Schema.String })),
 }) {}
 
 export class FileAnalysis extends Schema.Class<FileAnalysis>("FileAnalysis")({
     allRelevant: Schema.Boolean,
     relevant: Schema.Array(Schema.String),
-    irrelevant: Schema.Array(
-        Schema.Struct({
-            path: Schema.String,
-            reason: Schema.String,
-        }),
-    ),
+    irrelevant: Schema.Array(Schema.Struct({ path: Schema.String, reason: Schema.String })),
 }) {}
 ```
 
@@ -225,6 +210,7 @@ ogit commit -n
 ### Task 3: Add triage and analysis methods to CommitAi
 
 **Files:**
+
 - Modify: `src/services/CommitAi.ts:34-59` (service interface + layer)
 - Test: `tests/services/CommitAi.test.ts` (add tests)
 
@@ -239,10 +225,7 @@ import { FileAnalysis, FileTriage } from "../../src/domain/CommitMessage.ts";
 let triageCallCount = 0;
 
 const makeTriageJson = () =>
-    JSON.stringify({
-        analyse: ["src/index.ts", "src/utils.ts"],
-        skip: [{ path: "output.log", reason: "log file" }],
-    });
+    JSON.stringify({ analyse: ["src/index.ts", "src/utils.ts"], skip: [{ path: "output.log", reason: "log file" }] });
 
 const makeAnalysisJson = (allRelevant: boolean) =>
     JSON.stringify(
@@ -401,6 +384,7 @@ ogit commit -n
 ### Task 4: Add status parsing utility
 
 **Files:**
+
 - Create: `src/domain/parseStatus.ts`
 - Test: `tests/domain/parseStatus.test.ts` (create)
 
@@ -488,6 +472,7 @@ ogit commit -n
 ### Task 5: Add binary file detection utility
 
 **Files:**
+
 - Create: `src/domain/parseBinaryFiles.ts`
 - Test: `tests/domain/parseBinaryFiles.test.ts` (create)
 
@@ -564,6 +549,7 @@ ogit commit -n
 ### Task 6: Implement autoStage orchestration in commit command
 
 **Files:**
+
 - Modify: `src/commands/commit.ts:34-135`
 
 This is the main integration task. It wires everything together.
@@ -574,33 +560,29 @@ In `src/commands/commit.ts`, replace the current context-gathering section (line
 
 1. Try `diffStaged()`. If it succeeds, proceed with existing flow.
 2. If it fails with `nothing_staged`:
-   - **Non-interactive:** run `git.addAll()`, then retry `diffStaged()` and continue.
-   - **Interactive:** run the auto-stage flow, then retry `diffStaged()` and continue.
+    - **Non-interactive:** run `git.addAll()`, then retry `diffStaged()` and continue.
+    - **Interactive:** run the auto-stage flow, then retry `diffStaged()` and continue.
 
 ```typescript
 // 1. Check for staged changes
-const hasStagedChanges = yield* git.diffStaged().pipe(
-    Effect.map(() => true),
-    Effect.catchTag("GitError", (e) =>
-        e.reason === "nothing_staged" ? Effect.succeed(false) : Effect.fail(e),
-    ),
-);
+const hasStagedChanges =
+    yield *
+    git.diffStaged().pipe(
+        Effect.map(() => true),
+        Effect.catchTag("GitError", (e) => (e.reason === "nothing_staged" ? Effect.succeed(false) : Effect.fail(e))),
+    );
 
 if (!hasStagedChanges) {
     if (config.nonInteractive) {
-        yield* git.addAll();
+        yield * git.addAll();
     } else {
-        yield* autoStage(git, commitAi);
+        yield * autoStage(git, commitAi);
     }
 }
 
 // 2. Gather context in parallel (now guaranteed to have staged changes)
-const [diff, branch, status, recentCommits] = yield* Effect.all([
-    git.diffStaged(),
-    git.branch(),
-    git.status(),
-    git.log(10),
-]);
+const [diff, branch, status, recentCommits] =
+    yield * Effect.all([git.diffStaged(), git.branch(), git.status(), git.log(10)]);
 ```
 
 **Step 2: Implement the autoStage function**
@@ -627,10 +609,7 @@ const autoStage = (git: Git["Type"], commitAi: CommitAi["Type"]) =>
         const triage = yield* commitAi.triageFiles(files, branch);
 
         if (triage.analyse.length === 0) {
-            return yield* new GitError({
-                reason: "nothing_staged",
-                message: "No files suitable for committing.",
-            });
+            return yield* new GitError({ reason: "nothing_staged", message: "No files suitable for committing." });
         }
 
         // 3. Filter out binary files
@@ -668,9 +647,7 @@ const autoStage = (git: Git["Type"], commitAi: CommitAi["Type"]) =>
             }
             yield* Console.log("");
 
-            const exclude = yield* Prompt.confirm({
-                message: "Exclude them from this commit?",
-            });
+            const exclude = yield* Prompt.confirm({ message: "Exclude them from this commit?" });
 
             if (exclude) {
                 yield* git.addFiles(analysis.relevant);

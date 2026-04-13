@@ -15,11 +15,13 @@
 ### Task 1: Install dependencies
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Install @bgotink/kdl and env-paths**
 
 Run:
+
 ```bash
 pnpm add @bgotink/kdl env-paths
 ```
@@ -41,6 +43,7 @@ ogit commit -n
 ### Task 2: KDL-to-plain-object transformer + tests
 
 **Files:**
+
 - Create: `src/domain/parseKdl.ts`
 - Create: `test/domain/parseKdl.test.ts`
 
@@ -63,10 +66,7 @@ describe("parseKdlToObject", () => {
             api-key "sk-ant-123"
             model "claude-haiku-4-5"
         `);
-        expect(result).toEqual({
-            "api-key": "sk-ant-123",
-            model: "claude-haiku-4-5",
-        });
+        expect(result).toEqual({ "api-key": "sk-ant-123", model: "claude-haiku-4-5" });
     });
 
     it("parses nested children as objects", () => {
@@ -75,9 +75,7 @@ describe("parseKdlToObject", () => {
                 system-prompt "You are a helper."
             }
         `);
-        expect(result).toEqual({
-            commit: { "system-prompt": "You are a helper." },
-        });
+        expect(result).toEqual({ commit: { "system-prompt": "You are a helper." } });
     });
 
     it("parses multi-line strings", () => {
@@ -89,9 +87,7 @@ describe("parseKdlToObject", () => {
                     """
             }
         `);
-        expect(result).toEqual({
-            commit: { "system-prompt": "Line one.\nLine two." },
-        });
+        expect(result).toEqual({ commit: { "system-prompt": "Line one.\nLine two." } });
     });
 
     it("parses boolean and number values", () => {
@@ -164,6 +160,7 @@ ogit commit -n
 ### Task 3: Config schema + tests
 
 **Files:**
+
 - Create: `src/domain/OgitConfig.ts`
 - Create: `test/domain/OgitConfig.test.ts`
 
@@ -176,8 +173,7 @@ import { describe, expect, it } from "vitest";
 import { Effect, Schema } from "effect";
 import { OgitConfigSchema, type OgitConfig } from "../../src/domain/OgitConfig.ts";
 
-const decode = (input: unknown): OgitConfig =>
-    Schema.decodeUnknownSync(OgitConfigSchema)(input);
+const decode = (input: unknown): OgitConfig => Schema.decodeUnknownSync(OgitConfigSchema)(input);
 
 describe("OgitConfigSchema", () => {
     it("decodes a full config", () => {
@@ -216,9 +212,7 @@ Create `src/domain/OgitConfig.ts`:
 ```ts
 import { Schema } from "effect";
 
-const CommitConfigSchema = Schema.Struct({
-    "system-prompt": Schema.optionalKey(Schema.String),
-});
+const CommitConfigSchema = Schema.Struct({ "system-prompt": Schema.optionalKey(Schema.String) });
 
 export const OgitConfigSchema = Schema.Struct({
     "api-key": Schema.optionalKey(Schema.String),
@@ -246,6 +240,7 @@ ogit commit -n
 ### Task 4: Config file discovery (walk-up search) + tests
 
 **Files:**
+
 - Create: `src/domain/findConfigFile.ts`
 - Create: `test/domain/findConfigFile.test.ts`
 
@@ -340,6 +335,7 @@ ogit commit -n
 ### Task 5: Config merge utility + tests
 
 **Files:**
+
 - Create: `src/domain/mergeConfigs.ts`
 - Create: `test/domain/mergeConfigs.test.ts`
 
@@ -408,7 +404,7 @@ export const mergeConfigs = (...configs: ReadonlyArray<OgitConfig>): OgitConfig 
         for (const [key, value] of Object.entries(config)) {
             if (value === undefined) continue;
             if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-                result[key] = { ...(result[key] as Record<string, unknown> ?? {}), ...value };
+                result[key] = { ...((result[key] as Record<string, unknown>) ?? {}), ...value };
             } else {
                 result[key] = value;
             }
@@ -435,6 +431,7 @@ ogit commit -n
 ### Task 6: OgitConfig Effect Service
 
 **Files:**
+
 - Create: `src/services/OgitConfig.ts`
 
 **Step 1: Implement the OgitConfig service**
@@ -487,12 +484,8 @@ export class OgitConfigService extends Context.Service<
                 const localConfig = localPath ? (readAndParseKdl(localPath) ?? {}) : {};
 
                 // 3. Env var overrides (api-key only)
-                const envApiKey = yield* Config.string("OGIT_API_KEY").pipe(
-                    Config.option,
-                );
-                const envConfig: OgitConfigType = Option.isSome(envApiKey)
-                    ? { "api-key": envApiKey.value }
-                    : {};
+                const envApiKey = yield* Config.string("OGIT_API_KEY").pipe(Config.option);
+                const envConfig: OgitConfigType = Option.isSome(envApiKey) ? { "api-key": envApiKey.value } : {};
 
                 // 4. CLI flag overrides
                 const cliConfig: OgitConfigType = overrides.model ? { model: overrides.model } : {};
@@ -528,6 +521,7 @@ ogit commit -n
 ### Task 7: Wire OgitConfig into CommitAi and commit command
 
 **Files:**
+
 - Modify: `src/services/CommitAi.ts` — change `createChat` to accept an optional system prompt string (replacing the entire default when provided)
 - Modify: `src/commands/commit.ts` — replace `OGIT_INSTRUCTIONS` usage with `OgitConfigService`, pass config values through
 
@@ -541,11 +535,13 @@ In `src/services/CommitAi.ts`, change `createChat` to accept an optional `system
 - Remove `buildCommitSystemPrompt` function (replace with a constant `DEFAULT_COMMIT_SYSTEM_PROMPT`)
 
 The service interface becomes:
+
 ```ts
 readonly createChat: (context: GitContext, systemPrompt?: string) => Effect.Effect<Chat.Service, CommitAiError>;
 ```
 
 The implementation:
+
 ```ts
 const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
 
@@ -560,6 +556,7 @@ Rules:
 ```
 
 In `createChat`:
+
 ```ts
 function* (context: GitContext, systemPrompt?: string) {
     return yield* Chat.fromPrompt([
@@ -576,30 +573,27 @@ In `src/commands/commit.ts`:
 1. Add import: `import { OgitConfigService } from "../services/OgitConfig.ts";`
 2. Remove the `OGIT_INSTRUCTIONS` config read (lines 159-161)
 3. Replace with:
-   ```ts
-   const ogitConfig = yield* OgitConfigService;
-   ```
+    ```ts
+    const ogitConfig = yield * OgitConfigService;
+    ```
 4. Change `createChat` call (line 166) to:
-   ```ts
-   const chat = yield* commitAi.createChat(
-       context,
-       Option.getOrUndefined(ogitConfig.commitSystemPrompt),
-   );
-   ```
+    ```ts
+    const chat = yield * commitAi.createChat(context, Option.getOrUndefined(ogitConfig.commitSystemPrompt));
+    ```
 5. Add `Option` to the Effect import
 6. In the `Effect.provide` block, add `OgitConfigService.layer({ model: config.model })` to the merged layers
 7. Use `ogitConfig.apiKey` as fallback for the Anthropic client config:
-   ```ts
-   AnthropicClient.layerConfig({
-       apiKey: Config.redacted("OGIT_API_KEY").pipe(
-           Config.orElse(() =>
-               Option.match(ogitConfig.apiKey, {
-                   onNone: () => Config.fail("No API key configured"),
-                   onSome: (key) => Config.succeed(Redacted.make(key)),
-               })
-           ),
-       ),
-   ```
+    ```ts
+    AnthropicClient.layerConfig({
+        apiKey: Config.redacted("OGIT_API_KEY").pipe(
+            Config.orElse(() =>
+                Option.match(ogitConfig.apiKey, {
+                    onNone: () => Config.fail("No API key configured"),
+                    onSome: (key) => Config.succeed(Redacted.make(key)),
+                })
+            ),
+        ),
+    ```
 8. Add `Redacted` to the Effect import
 
 **Step 3: Verify it compiles**
@@ -612,6 +606,7 @@ Expected: No errors
 Run: `echo "test" > /tmp/ogit-test && rm /tmp/ogit-test`
 
 Create a test `.ogit.kdl` in the project root:
+
 ```kdl
 model "claude-haiku-4-5"
 ```
@@ -631,6 +626,7 @@ ogit commit -n
 ### Task 8: Update README and clean up
 
 **Files:**
+
 - Modify: `README.md` — replace `OGIT_INSTRUCTIONS` docs with `.ogit.kdl` config docs
 - Modify: `CLAUDE.md` — update if needed
 
@@ -638,11 +634,11 @@ ogit commit -n
 
 - Remove the "Custom instructions" section referencing `OGIT_INSTRUCTIONS`
 - Add a "Configuration" section documenting:
-  - `.ogit.kdl` file format with example
-  - Resolution order (CLI > env > per-repo > global)
-  - Global config location per OS
-  - That `OGIT_API_KEY` env var still works
-  - Example config with `commit { system-prompt """...""" }`
+    - `.ogit.kdl` file format with example
+    - Resolution order (CLI > env > per-repo > global)
+    - Global config location per OS
+    - That `OGIT_API_KEY` env var still works
+    - Example config with `commit { system-prompt """...""" }`
 
 **Step 2: Verify no remaining OGIT_INSTRUCTIONS references**
 

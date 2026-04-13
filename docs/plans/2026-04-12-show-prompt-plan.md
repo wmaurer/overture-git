@@ -13,6 +13,7 @@
 ### Task 1: Export the default system prompt
 
 **Files:**
+
 - Modify: `src/services/CommitAi.ts:8`
 
 **Step 1: Add `export` to the constant**
@@ -46,6 +47,7 @@ ogit commit -n
 ### Task 2: Add the `--show-prompt` flag and early-exit logic
 
 **Files:**
+
 - Modify: `src/commands/commit.ts:116-265`
 
 **Step 1: Add the flag definition**
@@ -74,12 +76,12 @@ Inside the `Effect.gen` callback (after line 132 where `ogitConfig` is resolved)
 ```typescript
 // Show prompt and exit if requested
 if (config.showPrompt) {
-    yield* Console.log("Default system prompt:\n");
-    yield* Console.log(DEFAULT_COMMIT_SYSTEM_PROMPT);
+    yield * Console.log("Default system prompt:\n");
+    yield * Console.log(DEFAULT_COMMIT_SYSTEM_PROMPT);
 
     if (Option.isSome(ogitConfig.commitSystemPrompt)) {
-        yield* Console.log("\nCustom system prompt (from config):\n");
-        yield* Console.log(ogitConfig.commitSystemPrompt.value);
+        yield * Console.log("\nCustom system prompt (from config):\n");
+        yield * Console.log(ogitConfig.commitSystemPrompt.value);
     }
 
     return;

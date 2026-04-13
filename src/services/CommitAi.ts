@@ -79,13 +79,7 @@ export class CommitAi extends Context.Service<
                         { role: "user", content: buildCommitUserPrompt(context) },
                     ]);
                 },
-                Effect.mapError(
-                    (error) =>
-                        new CommitAiError({
-                            reason: "generation_failed",
-                            message: String(error),
-                        }),
-                ),
+                Effect.mapError((error) => new CommitAiError({ reason: "generation_failed", message: String(error) })),
             ),
 
             triageFiles: Effect.fn("CommitAi.triageFiles")(

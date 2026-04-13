@@ -1,8 +1,6 @@
 import { Schema } from "effect";
 
-const CommitConfigSchema = Schema.Struct({
-    "system-prompt": Schema.optionalKey(Schema.String),
-});
+const CommitConfigSchema = Schema.Struct({ "system-prompt": Schema.optionalKey(Schema.String) });
 
 export const OgitConfigSchema = Schema.Struct({
     "api-key": Schema.optionalKey(Schema.Redacted(Schema.String)),

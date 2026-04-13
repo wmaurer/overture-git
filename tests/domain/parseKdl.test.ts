@@ -13,10 +13,7 @@ describe("parseKdlToObject", () => {
             api-key "sk-ant-123"
             model "claude-haiku-4-5"
         `);
-        expect(result).toEqual({
-            "api-key": "sk-ant-123",
-            model: "claude-haiku-4-5",
-        });
+        expect(result).toEqual({ "api-key": "sk-ant-123", model: "claude-haiku-4-5" });
     });
 
     it("parses nested children as objects", () => {
@@ -25,9 +22,7 @@ describe("parseKdlToObject", () => {
                 system-prompt "You are a helper."
             }
         `);
-        expect(result).toEqual({
-            commit: { "system-prompt": "You are a helper." },
-        });
+        expect(result).toEqual({ commit: { "system-prompt": "You are a helper." } });
     });
 
     it("parses multi-line strings", () => {
@@ -39,9 +34,7 @@ describe("parseKdlToObject", () => {
                     """
             }
         `);
-        expect(result).toEqual({
-            commit: { "system-prompt": "Line one.\nLine two." },
-        });
+        expect(result).toEqual({ commit: { "system-prompt": "Line one.\nLine two." } });
     });
 
     it("parses boolean and number values", () => {
