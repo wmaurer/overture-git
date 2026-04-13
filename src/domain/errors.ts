@@ -5,7 +5,7 @@ export class GitError extends Schema.TaggedErrorClass<GitError>()("GitError", {
     message: Schema.String,
 }) {}
 
-export class CommitAiError extends Schema.TaggedErrorClass<CommitAiError>()("CommitAiError", {
+export class OgitAiError extends Schema.TaggedErrorClass<OgitAiError>()("OgitAiError", {
     reason: Schema.Literals(["generation_failed", "invalid_response"]),
     message: Schema.String,
 }) {}

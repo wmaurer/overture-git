@@ -8,7 +8,7 @@ import { ConfigSetupError, GitError } from "../domain/errors.ts";
 import { parseBinaryFiles } from "../domain/parseBinaryFiles.ts";
 import { parseEditedMessage } from "../domain/parseEditedMessage.ts";
 import { parseStatus } from "../domain/parseStatus.ts";
-import { CommitAi, DEFAULT_COMMIT_SYSTEM_PROMPT } from "../services/CommitAi.ts";
+import { OgitAi, DEFAULT_COMMIT_SYSTEM_PROMPT } from "../services/OgitAi.ts";
 import { Editor } from "../services/Editor.ts";
 import { Git } from "../services/Git.ts";
 import { OgitConfigService } from "../services/OgitConfig.ts";
@@ -36,7 +36,7 @@ const displayRaw = Effect.fn("displayRaw")(function* (m: { subject: string; body
 
 const autoStage = Effect.fn("autoStage")(function* () {
     const git = yield* Git;
-    const commitAi = yield* CommitAi;
+    const commitAi = yield* OgitAi;
 
     // 1. Get file list and branch
     const [status, branch] = yield* Effect.all([git.status(), git.branch()]);
@@ -153,7 +153,7 @@ export const commit = Command.make(
         return Effect.gen(function* () {
             const ogitConfig = yield* OgitConfigService;
             const git = yield* Git;
-            const commitAi = yield* CommitAi;
+            const commitAi = yield* OgitAi;
             const editor = yield* Editor;
 
             // 1. Check for staged changes
@@ -246,7 +246,7 @@ export const commit = Command.make(
         }).pipe(
             Effect.provide(
                 Layer.mergeAll(
-                    CommitAi.layer,
+                    OgitAi.layer,
                     Editor.layer,
                     Layer.unwrap(
                         Effect.gen(function* () {
@@ -279,7 +279,7 @@ export const commit = Command.make(
                 ),
             ),
             Effect.catchTag("GitError", (error) => Console.error(error.message)),
-            Effect.catchTag("CommitAiError", (error) => Console.error(`AI error: ${error.message}`)),
+            Effect.catchTag("OgitAiError", (error) => Console.error(`AI error: ${error.message}`)),
             Effect.catchTag("EditorError", (error) => Console.error(`Editor error: ${error.message}`)),
             Effect.catchTag("ConfigSetupError", (error) => {
                 if (error.reason === "missing_api_key") {

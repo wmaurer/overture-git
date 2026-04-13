@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from "effect";
 import { Chat, LanguageModel } from "effect/unstable/ai";
 
 import { GitContext } from "../domain/CommitMessage.ts";
-import { CommitAiError } from "../domain/errors.ts";
+import { OgitAiError } from "../domain/errors.ts";
 import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
 
 export const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
@@ -55,34 +55,34 @@ Rules:
 const buildAnalysisPrompt = (diff: string, branch: string): string =>
     `Analyse the following diff from branch "${branch}" and determine which files belong together in a single commit.\n\n## Diff\n${diff}`;
 
-export class CommitAi extends Context.Service<
-    CommitAi,
+export class OgitAi extends Context.Service<
+    OgitAi,
     {
-        readonly createChat: (context: GitContext, systemPrompt?: string) => Effect.Effect<Chat.Service, CommitAiError>;
+        readonly createChat: (context: GitContext, systemPrompt?: string) => Effect.Effect<Chat.Service, OgitAiError>;
         readonly triageFiles: (
             files: ReadonlyArray<string>,
             branch: string,
-        ) => Effect.Effect<FileTriage, CommitAiError, LanguageModel.LanguageModel>;
+        ) => Effect.Effect<FileTriage, OgitAiError, LanguageModel.LanguageModel>;
         readonly analyseFiles: (
             diff: string,
             branch: string,
-        ) => Effect.Effect<FileAnalysis, CommitAiError, LanguageModel.LanguageModel>;
+        ) => Effect.Effect<FileAnalysis, OgitAiError, LanguageModel.LanguageModel>;
     }
->()("@overture/CommitAi") {
+>()("@overture/OgitAi") {
     static layer = Layer.succeed(
-        CommitAi,
-        CommitAi.of({
-            createChat: Effect.fn("CommitAi.createChat")(
+        OgitAi,
+        OgitAi.of({
+            createChat: Effect.fn("OgitAi.createChat")(
                 function* (context: GitContext, systemPrompt?: string) {
                     return yield* Chat.fromPrompt([
                         { role: "system", content: systemPrompt ?? DEFAULT_COMMIT_SYSTEM_PROMPT },
                         { role: "user", content: buildCommitUserPrompt(context) },
                     ]);
                 },
-                Effect.mapError((error) => new CommitAiError({ reason: "generation_failed", message: String(error) })),
+                Effect.mapError((error) => new OgitAiError({ reason: "generation_failed", message: String(error) })),
             ),
 
-            triageFiles: Effect.fn("CommitAi.triageFiles")(
+            triageFiles: Effect.fn("OgitAi.triageFiles")(
                 function* (files: ReadonlyArray<string>, branch: string) {
                     const chat = yield* Chat.fromPrompt([
                         { role: "system", content: triageSystemPrompt },
@@ -95,10 +95,10 @@ export class CommitAi extends Context.Service<
                     });
                     return result.value;
                 },
-                Effect.mapError((error) => new CommitAiError({ reason: "generation_failed", message: String(error) })),
+                Effect.mapError((error) => new OgitAiError({ reason: "generation_failed", message: String(error) })),
             ),
 
-            analyseFiles: Effect.fn("CommitAi.analyseFiles")(
+            analyseFiles: Effect.fn("OgitAi.analyseFiles")(
                 function* (diff: string, branch: string) {
                     const chat = yield* Chat.fromPrompt([
                         { role: "system", content: analysisSystemPrompt },
@@ -111,7 +111,7 @@ export class CommitAi extends Context.Service<
                     });
                     return result.value;
                 },
-                Effect.mapError((error) => new CommitAiError({ reason: "generation_failed", message: String(error) })),
+                Effect.mapError((error) => new OgitAiError({ reason: "generation_failed", message: String(error) })),
             ),
         }),
     );
