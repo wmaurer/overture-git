@@ -1,17 +1,44 @@
 {
     "name": "overture-git",
     "version": "1.0.0",
-    "description": "",
-    "keywords": [],
+    "description": "AI-powered git workflow tools — generate conventional commit messages and create worktrees with smart branch names using Claude",
+    "keywords": [
+        "git",
+        "commit",
+        "ai",
+        "claude",
+        "conventional-commits",
+        "worktree",
+        "cli",
+        "effect"
+    ],
     "license": "ISC",
-    "author": "",
+    "author": "Wayne Maurer",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/wmaurer/overture-git.git"
+    },
+    "homepage": "https://github.com/wmaurer/overture-git",
+    "bugs": {
+        "url": "https://github.com/wmaurer/overture-git/issues"
+    },
     "bin": {
         "ogit": "dist/main.js"
     },
     "type": "module",
     "main": "dist/main.js",
+    "files": [
+        "dist/"
+    ],
+    "engines": {
+        "node": ">=22.0.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
     "scripts": {
         "prepare": "effect-language-service patch",
+        "prepublishOnly": "pnpm build && pnpm test",
         "build": "tsc",
         "dev": "tsc --watch",
         "typecheck": "tsc --noEmit",
