@@ -3,7 +3,7 @@ import { Effect, Layer, Stream } from "effect";
 import { LanguageModel } from "effect/unstable/ai";
 
 import { CommitMessage, GitContext } from "../../src/domain/CommitMessage.ts";
-import { CommitAi } from "../../src/services/CommitAi.ts";
+import { OgitAi } from "../../src/services/OgitAi.ts";
 
 const makeCommitJson = (overrides: Partial<{ type: string; scope: string; subject: string; bullets: string[] }> = {}) =>
     JSON.stringify({
@@ -51,7 +51,7 @@ const TestModelLayer = Layer.effect(
     }),
 );
 
-const TestCommitAiLayer = Layer.merge(CommitAi.layer, TestModelLayer);
+const TestOgitAiLayer = Layer.merge(OgitAi.layer, TestModelLayer);
 
 const testContext = new GitContext({
     diff: "test diff content",
@@ -60,10 +60,10 @@ const testContext = new GitContext({
     status: "M src/index.ts",
 });
 
-describe("CommitAi", () => {
+describe("OgitAi", () => {
     it.effect("createChat returns a chat that generates a structured commit message", () =>
         Effect.gen(function* () {
-            const commitAi = yield* CommitAi;
+            const commitAi = yield* OgitAi;
             const chat = yield* commitAi.createChat(testContext);
             const response = yield* chat.generateObject({
                 objectName: "commit_message",
@@ -73,13 +73,13 @@ describe("CommitAi", () => {
             expect(response.value.type).toBe("feat");
             expect(response.value.subjectLine).toBe("feat(cli): add commit command");
             expect(response.value.bullets).toHaveLength(1);
-        }).pipe(Effect.provide(TestCommitAiLayer)),
+        }).pipe(Effect.provide(TestOgitAiLayer)),
     );
 
     it.effect("regeneration via chat includes conversation history", () =>
         Effect.gen(function* () {
             callCount = 0;
-            const commitAi = yield* CommitAi;
+            const commitAi = yield* OgitAi;
             const chat = yield* commitAi.createChat(testContext);
 
             // First generation
@@ -98,7 +98,7 @@ describe("CommitAi", () => {
             });
             expect(second.value.type).toBe("fix");
             expect(callCount).toBe(2);
-        }).pipe(Effect.provide(TestCommitAiLayer)),
+        }).pipe(Effect.provide(TestOgitAiLayer)),
     );
 });
 
@@ -143,28 +143,28 @@ const TriageModelLayer = Layer.effect(
     }),
 );
 
-const TriageCommitAiLayer = Layer.merge(CommitAi.layer, TriageModelLayer);
+const TriageOgitAiLayer = Layer.merge(OgitAi.layer, TriageModelLayer);
 
-describe("CommitAi.triageFiles", () => {
+describe("OgitAi.triageFiles", () => {
     it.effect("classifies files as analyse or skip", () =>
         Effect.gen(function* () {
             triageCallCount = 0;
-            const commitAi = yield* CommitAi;
+            const commitAi = yield* OgitAi;
             const result = yield* commitAi.triageFiles(["src/index.ts", "src/utils.ts", "output.log"], "feat/thing");
             expect(result.analyse).toContain("src/index.ts");
             expect(result.skip).toHaveLength(1);
             expect(result.skip[0].path).toBe("output.log");
-        }).pipe(Effect.provide(TriageCommitAiLayer)),
+        }).pipe(Effect.provide(TriageOgitAiLayer)),
     );
 });
 
-describe("CommitAi.analyseFiles", () => {
+describe("OgitAi.analyseFiles", () => {
     it.effect("groups files by relevance", () =>
         Effect.gen(function* () {
             triageCallCount = 1; // skip triage response, go to analysis
-            const commitAi = yield* CommitAi;
+            const commitAi = yield* OgitAi;
             const result = yield* commitAi.analyseFiles("diff content here", "feat/thing");
             expect(result.relevant).toContain("src/index.ts");
-        }).pipe(Effect.provide(TriageCommitAiLayer)),
+        }).pipe(Effect.provide(TriageOgitAiLayer)),
     );
 });
