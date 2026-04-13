@@ -21,7 +21,10 @@ const ensureWorktreesDir = Effect.fn("ensureWorktreesDir")(function* (repoRoot: 
     const gitignorePath = `${repoRoot}/.gitignore`;
     const content = yield* fs.readFileString(gitignorePath).pipe(Effect.orElseSucceed(() => ""));
     const lines = content.split("\n");
-    const hasEntry = lines.some((line: string) => line.trim() === "/.worktrees" || line.trim() === ".worktrees");
+    const hasEntry = lines.some((line: string) => {
+        const trimmed = line.trim().replace(/\/$/, "");
+        return trimmed === "/.worktrees" || trimmed === ".worktrees";
+    });
 
     if (!hasEntry) {
         const separator = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
