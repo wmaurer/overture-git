@@ -9,6 +9,7 @@ Git workflow tools powered by AI. `ogit` generates conventional commit messages 
 - **Interactive workflow** — review the generated message, then commit, edit, regenerate (with optional feedback), or cancel
 - **Non-interactive mode** — automate commits in scripts and AI agent workflows with `--non-interactive`
 - **Layered configuration** — configure via `.ogit.kdl` config files (global and per-repo), environment variables, and CLI flags
+- **AI-powered worktree creation** — creates git worktrees with AI-suggested branch names based on your uncommitted changes
 - **Model selection** — choose any Anthropic model with `--model` or in config
 
 ## Installation
@@ -78,6 +79,32 @@ ogit commit --model claude-sonnet-4-20250514
 ```
 
 Defaults to `claude-haiku-4-5` (configurable via `.ogit.kdl`).
+
+### Worktree creation
+
+```bash
+ogit worktree create
+```
+
+Creates a new git worktree under `.worktrees/` with an AI-suggested branch name.
+
+If your working tree is **clean**, ogit prompts for a branch name and creates the worktree.
+
+If you have **uncommitted changes** (staged, unstaged, or untracked), ogit analyzes the diff and suggests a branch name in `<type>/<short-description>` format (e.g. `feat/add-user-auth`). It shows the suggestion with reasoning, then presents a menu:
+
+- **Accept** — use the suggested name
+- **Edit** — tweak the suggested name
+- **Regenerate** — get a different suggestion
+- **Regenerate with feedback** — tell the AI what to change and regenerate
+- **Cancel** — abort without creating a worktree
+
+After choosing a name, ogit:
+
+1. **Stashes** all changes (including untracked files)
+2. **Creates** the worktree at `.worktrees/<branch-name>/` on a new branch
+3. **Pops** the stash into the new worktree
+
+ogit automatically adds `.worktrees` to your `.gitignore` if it isn't already present.
 
 ## Configuration
 
