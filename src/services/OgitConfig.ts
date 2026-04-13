@@ -4,7 +4,7 @@ import * as Path from "effect/Path";
 import envPaths from "env-paths";
 
 import { mergeConfigs } from "../domain/mergeConfigs.ts";
-import { OgitConfigSchema, type OgitConfig as OgitConfigType } from "../domain/OgitConfig.ts";
+import { OgitConfig } from "../domain/OgitConfig.ts";
 import { parseKdlToObject } from "../domain/parseKdl.ts";
 import { findConfigFile } from "./findConfigFile.ts";
 
@@ -14,13 +14,13 @@ const readAndParseKdl = Effect.fn("readAndParseKdl")(function* (filePath: string
     const fs = yield* FileSystem.FileSystem;
     const content = yield* fs.readFileString(filePath);
     const raw = parseKdlToObject(content);
-    return Schema.decodeUnknownSync(OgitConfigSchema)(raw);
+    return Schema.decodeUnknownSync(OgitConfig)(raw);
 }, Effect.option);
 
 export class OgitConfigService extends Context.Service<
     OgitConfigService,
     {
-        readonly config: OgitConfigType;
+        readonly config: OgitConfig;
         readonly commitSystemPrompt: Option.Option<string>;
         readonly model: Option.Option<string>;
         readonly apiKey: Option.Option<Redacted.Redacted<string>>;
@@ -41,19 +41,21 @@ export class OgitConfigService extends Context.Service<
                 const localPath = yield* findConfigFile(cwd);
                 const localConfig = Option.isSome(localPath)
                     ? yield* readAndParseKdl(localPath.value)
-                    : Option.none<OgitConfigType>();
+                    : Option.none<OgitConfig>();
 
                 // 3. Env var overrides (api-key only)
                 const envApiKey = yield* Config.option(Config.redacted("OGIT_API_KEY"));
-                const envConfig: OgitConfigType = Option.isSome(envApiKey) ? { "api-key": envApiKey.value } : {};
+                const envConfig = Option.isSome(envApiKey)
+                    ? OgitConfig.make({ "api-key": envApiKey.value })
+                    : OgitConfig.make({});
 
                 // 4. CLI flag overrides
-                const cliConfig: OgitConfigType = overrides.model ? { model: overrides.model } : {};
+                const cliConfig = overrides.model ? OgitConfig.make({ model: overrides.model }) : OgitConfig.make({});
 
                 // 5. Merge: global < local < env < cli
                 const merged = mergeConfigs(
-                    Option.getOrElse(globalConfig, () => ({}) as OgitConfigType),
-                    Option.getOrElse(localConfig, () => ({}) as OgitConfigType),
+                    Option.getOrElse(globalConfig, () => OgitConfig.make({})),
+                    Option.getOrElse(localConfig, () => OgitConfig.make({})),
                     envConfig,
                     cliConfig,
                 );
