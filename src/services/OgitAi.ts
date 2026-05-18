@@ -25,9 +25,15 @@ export const retryOnRateLimit = <A, E, R>(self: Effect.Effect<A, E, R>, retriesL
         },
     ) as Effect.Effect<A, E, R>;
 
-export const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
+export const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce conventional commit messages.
 
 Write the commit message in English. Use correct capitalization.
+
+Output format — respond with ONLY the commit message, nothing else:
+- Line 1: the subject (conventional commit format)
+- Line 2: blank
+- Remaining lines: the body (bullet points)
+No preamble, no closing remarks, no code fences, no labels like "Subject:" or "Body:".
 
 Rules:
 - Use conventional commit format: type(scope): short description

@@ -1,7 +1,7 @@
-import { Console, Effect, Layer, Option } from "effect";
+import { Console, Effect, Layer, Option, Stream } from "effect";
 import { Command, Flag, Prompt } from "effect/unstable/cli";
 
-import { CommitMessage, GitContext } from "../domain/CommitMessage.ts";
+import { GitContext } from "../domain/CommitMessage.ts";
 import { GitError } from "../domain/errors.ts";
 import { Provider } from "../domain/OgitConfig.ts";
 import { parseBinaryFiles } from "../domain/parseBinaryFiles.ts";
@@ -190,14 +190,28 @@ export const commit = Command.make(
             // 3. Create chat session (with optional system prompt from config)
             const chat = yield* commitAi.createChat(context, Option.getOrUndefined(ogitConfig.commitSystemPrompt));
 
-            // 4. Initial generation
+            const streamGenerate = (prompt: Array<{ role: "user"; content: string }>) =>
+                Effect.gen(function* () {
+                    let accumulated = "";
+                    yield* Stream.runForEach(chat.streamText({ prompt }), (part) =>
+                        part.type === "text-delta"
+                            ? Effect.sync(() => {
+                                  process.stdout.write(part.delta);
+                                  accumulated += part.delta;
+                              })
+                            : Effect.void,
+                    );
+                    if (!accumulated.endsWith("\n")) process.stdout.write("\n");
+                    return accumulated;
+                });
+
+            // 4. Initial generation — stream to terminal, parse into subject/body
             yield* Console.log("Generating commit message...");
+            yield* Console.log("");
             let prompt: Array<{ role: "user"; content: string }> = [];
-            const initial = yield* retryOnRateLimit(
-                chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage }),
-            );
-            let current = { subject: initial.value.subjectLine, body: initial.value.body };
-            yield* displayRaw(current);
+            const initial = yield* retryOnRateLimit(streamGenerate(prompt));
+            yield* Console.log("");
+            let current = parseEditedMessage(initial);
 
             // Non-interactive: commit immediately and exit
             if (config.nonInteractive) {
@@ -242,11 +256,10 @@ export const commit = Command.make(
                 }
 
                 yield* Console.log("Generating commit message...");
-                const response = yield* retryOnRateLimit(
-                    chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage }),
-                );
-                current = { subject: response.value.subjectLine, body: response.value.body };
-                yield* displayRaw(current);
+                yield* Console.log("");
+                const response = yield* retryOnRateLimit(streamGenerate(prompt));
+                yield* Console.log("");
+                current = parseEditedMessage(response);
             }
         }).pipe(
             Effect.provide(
