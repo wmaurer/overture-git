@@ -1,9 +1,29 @@
-import { Context, Effect, Layer } from "effect";
-import { Chat, LanguageModel } from "effect/unstable/ai";
+import { Context, Duration, Effect, Layer } from "effect";
+import { AiError, Chat, LanguageModel } from "effect/unstable/ai";
 
 import { GitContext } from "../domain/CommitMessage.ts";
 import { OgitAiError } from "../domain/errors.ts";
 import { FileAnalysis, FileTriage } from "../domain/FileAnalysis.ts";
+
+const countdown = (seconds: number): Effect.Effect<void> =>
+    Effect.gen(function* () {
+        for (let s = seconds; s > 0; s--) {
+            yield* Effect.sync(() => process.stdout.write(`\rRate limited. Retrying in ${s}s...`));
+            yield* Effect.sleep(Duration.seconds(1));
+        }
+        yield* Effect.sync(() => process.stdout.write("\r\x1b[K"));
+    });
+
+export const retryOnRateLimit = <A, E, R>(self: Effect.Effect<A, E, R>, retriesLeft = 3): Effect.Effect<A, E, R> =>
+    Effect.catchIf(
+        self,
+        (error) => retriesLeft > 0 && AiError.isAiError(error) && error.reason._tag === "RateLimitError",
+        (error) => {
+            const aiError = error as unknown as AiError.AiError;
+            const seconds = Math.ceil(Duration.toSeconds(aiError.retryAfter ?? Duration.seconds(30)));
+            return countdown(seconds).pipe(Effect.andThen(retryOnRateLimit(self, retriesLeft - 1)));
+        },
+    ) as Effect.Effect<A, E, R>;
 
 export const DEFAULT_COMMIT_SYSTEM_PROMPT = `You are a git commit message generator. You analyze diffs and produce structured conventional commit messages.
 
@@ -134,11 +154,9 @@ export class OgitAi extends Context.Service<
                         { role: "system", content: triageSystemPrompt },
                         { role: "user", content: buildTriagePrompt(files, branch) },
                     ]);
-                    const result = yield* chat.generateObject({
-                        objectName: "file_triage",
-                        prompt: [],
-                        schema: FileTriage,
-                    });
+                    const result = yield* retryOnRateLimit(
+                        chat.generateObject({ objectName: "file_triage", prompt: [], schema: FileTriage }),
+                    );
                     return result.value;
                 },
                 Effect.mapError((error) => new OgitAiError({ reason: "generation_failed", message: String(error) })),
@@ -150,11 +168,9 @@ export class OgitAi extends Context.Service<
                         { role: "system", content: analysisSystemPrompt },
                         { role: "user", content: buildAnalysisPrompt(diff, branch) },
                     ]);
-                    const result = yield* chat.generateObject({
-                        objectName: "file_analysis",
-                        prompt: [],
-                        schema: FileAnalysis,
-                    });
+                    const result = yield* retryOnRateLimit(
+                        chat.generateObject({ objectName: "file_analysis", prompt: [], schema: FileAnalysis }),
+                    );
                     return result.value;
                 },
                 Effect.mapError((error) => new OgitAiError({ reason: "generation_failed", message: String(error) })),

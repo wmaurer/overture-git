@@ -10,7 +10,7 @@ import { parseEditedMessage } from "../domain/parseEditedMessage.ts";
 import { parseStatus } from "../domain/parseStatus.ts";
 import { Editor } from "../services/Editor.ts";
 import { Git } from "../services/Git.ts";
-import { OgitAi, DEFAULT_COMMIT_SYSTEM_PROMPT } from "../services/OgitAi.ts";
+import { OgitAi, DEFAULT_COMMIT_SYSTEM_PROMPT, retryOnRateLimit } from "../services/OgitAi.ts";
 import { OgitConfigService } from "../services/OgitConfig.ts";
 
 type Action = "commit" | "regenerate" | "regenerate_with_feedback" | "edit" | "cancel";
@@ -188,7 +188,9 @@ export const commit = Command.make(
             // 4. Initial generation
             yield* Console.log("Generating commit message...");
             let prompt: Array<{ role: "user"; content: string }> = [];
-            const initial = yield* chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage });
+            const initial = yield* retryOnRateLimit(
+                chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage }),
+            );
             let current = { subject: initial.value.subjectLine, body: initial.value.body };
             yield* displayRaw(current);
 
@@ -235,11 +237,9 @@ export const commit = Command.make(
                 }
 
                 yield* Console.log("Generating commit message...");
-                const response = yield* chat.generateObject({
-                    objectName: "commit_message",
-                    prompt,
-                    schema: CommitMessage,
-                });
+                const response = yield* retryOnRateLimit(
+                    chat.generateObject({ objectName: "commit_message", prompt, schema: CommitMessage }),
+                );
                 current = { subject: response.value.subjectLine, body: response.value.body };
                 yield* displayRaw(current);
             }

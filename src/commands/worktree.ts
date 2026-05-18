@@ -8,7 +8,7 @@ import { ConfigSetupError, WorktreeError } from "../domain/errors.ts";
 import { parseStatus } from "../domain/parseStatus.ts";
 import { sanitizeBranchName } from "../domain/sanitizeBranchName.ts";
 import { Git } from "../services/Git.ts";
-import { OgitAi } from "../services/OgitAi.ts";
+import { OgitAi, retryOnRateLimit } from "../services/OgitAi.ts";
 import { OgitConfigService } from "../services/OgitConfig.ts";
 
 type WorktreeAction = "accept" | "regenerate" | "regenerate_with_feedback" | "edit" | "cancel";
@@ -102,11 +102,9 @@ const create = Command.make("create", {}, () =>
                 );
 
             let prompt: Array<{ role: "user"; content: string }> = [];
-            let result = yield* chat.generateObject({
-                objectName: "branch_name_suggestion",
-                prompt,
-                schema: BranchNameSuggestion,
-            });
+            let result = yield* retryOnRateLimit(
+                chat.generateObject({ objectName: "branch_name_suggestion", prompt, schema: BranchNameSuggestion }),
+            );
 
             yield* Console.log(`\nSuggested: ${result.value.name}`);
             yield* Console.log(`Reason: ${result.value.reasoning}\n`);
@@ -125,22 +123,26 @@ const create = Command.make("create", {}, () =>
                 } else if (action === "regenerate") {
                     prompt = [{ role: "user", content: "Please try a different branch name." }];
                     yield* Console.log("Generating branch name...");
-                    result = yield* chat.generateObject({
-                        objectName: "branch_name_suggestion",
-                        prompt,
-                        schema: BranchNameSuggestion,
-                    });
+                    result = yield* retryOnRateLimit(
+                        chat.generateObject({
+                            objectName: "branch_name_suggestion",
+                            prompt,
+                            schema: BranchNameSuggestion,
+                        }),
+                    );
                     yield* Console.log(`\nSuggested: ${result.value.name}`);
                     yield* Console.log(`Reason: ${result.value.reasoning}\n`);
                 } else if (action === "regenerate_with_feedback") {
                     const feedback = yield* Prompt.text({ message: "What should be different?" });
                     prompt = [{ role: "user", content: feedback }];
                     yield* Console.log("Generating branch name...");
-                    result = yield* chat.generateObject({
-                        objectName: "branch_name_suggestion",
-                        prompt,
-                        schema: BranchNameSuggestion,
-                    });
+                    result = yield* retryOnRateLimit(
+                        chat.generateObject({
+                            objectName: "branch_name_suggestion",
+                            prompt,
+                            schema: BranchNameSuggestion,
+                        }),
+                    );
                     yield* Console.log(`\nSuggested: ${result.value.name}`);
                     yield* Console.log(`Reason: ${result.value.reasoning}\n`);
                 } else {
