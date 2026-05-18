@@ -1,15 +1,15 @@
-import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
-import { Config, Console, Effect, Layer, Option } from "effect";
+import { Console, Effect, Layer, Option } from "effect";
 import { Command, Flag, Prompt } from "effect/unstable/cli";
-import envPaths from "env-paths";
 
 import { CommitMessage, GitContext } from "../domain/CommitMessage.ts";
-import { ConfigSetupError, GitError } from "../domain/errors.ts";
+import { GitError } from "../domain/errors.ts";
+import { Provider } from "../domain/OgitConfig.ts";
 import { parseBinaryFiles } from "../domain/parseBinaryFiles.ts";
 import { parseEditedMessage } from "../domain/parseEditedMessage.ts";
 import { parseStatus } from "../domain/parseStatus.ts";
 import { Editor } from "../services/Editor.ts";
 import { Git } from "../services/Git.ts";
+import { languageModelLayer } from "../services/LanguageModelProvider.ts";
 import { OgitAi, DEFAULT_COMMIT_SYSTEM_PROMPT, retryOnRateLimit } from "../services/OgitAi.ts";
 import { OgitConfigService } from "../services/OgitConfig.ts";
 
@@ -116,6 +116,10 @@ export const commit = Command.make(
             Flag.optional,
             Flag.withDescription("Anthropic model to use"),
         ),
+        provider: Flag.choice("provider", Provider.literals).pipe(
+            Flag.optional,
+            Flag.withDescription("LLM provider (anthropic API key, or claude-code subscription)"),
+        ),
         nonInteractive: Flag.boolean("non-interactive").pipe(
             Flag.withAlias("n"),
             Flag.withDefault(false),
@@ -127,9 +131,10 @@ export const commit = Command.make(
         ),
     },
     (config) => {
-        const ogitConfigLayer = OgitConfigService.layer(
-            Option.match(config.model, { onNone: () => ({}), onSome: (model) => ({ model }) }),
-        );
+        const ogitConfigLayer = OgitConfigService.layer({
+            ...Option.match(config.model, { onNone: () => ({}), onSome: (model) => ({ model }) }),
+            ...Option.match(config.provider, { onNone: () => ({}), onSome: (provider) => ({ provider }) }),
+        });
 
         if (config.showPrompt) {
             return Effect.gen(function* () {
@@ -245,36 +250,7 @@ export const commit = Command.make(
             }
         }).pipe(
             Effect.provide(
-                Layer.mergeAll(
-                    OgitAi.layer,
-                    Editor.layer,
-                    Layer.unwrap(
-                        Effect.gen(function* () {
-                            const ogitConfig = yield* OgitConfigService;
-                            const model = Option.getOrElse(ogitConfig.model, () => "claude-haiku-4-5");
-                            return AnthropicLanguageModel.model(model);
-                        }),
-                    ),
-                ).pipe(
-                    Layer.provide(
-                        Layer.unwrap(
-                            Effect.gen(function* () {
-                                const ogitConfig = yield* OgitConfigService;
-                                const envApiKey = yield* Config.option(Config.redacted("OGIT_API_KEY"));
-
-                                const apiKey = Option.orElse(envApiKey, () => ogitConfig.apiKey);
-                                if (Option.isNone(apiKey)) {
-                                    return yield* new ConfigSetupError({
-                                        reason: "missing_api_key",
-                                        message: "No API key found",
-                                        globalConfigPath: `${envPaths("ogit", { suffix: "" }).config}/config.kdl`,
-                                    });
-                                }
-
-                                return AnthropicClient.layerConfig({ apiKey: Config.succeed(apiKey.value) });
-                            }),
-                        ),
-                    ),
+                Layer.mergeAll(OgitAi.layer, Editor.layer, languageModelLayer).pipe(
                     Layer.provideMerge(ogitConfigLayer),
                 ),
             ),

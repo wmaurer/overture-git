@@ -4,7 +4,7 @@ import * as Path from "effect/Path";
 import envPaths from "env-paths";
 
 import { mergeConfigs } from "../domain/mergeConfigs.ts";
-import { OgitConfig } from "../domain/OgitConfig.ts";
+import { OgitConfig, type Provider } from "../domain/OgitConfig.ts";
 import { parseKdlToObject } from "../domain/parseKdl.ts";
 import { findConfigFile } from "./findConfigFile.ts";
 
@@ -24,9 +24,10 @@ export class OgitConfigService extends Context.Service<
         readonly commitSystemPrompt: Option.Option<string>;
         readonly model: Option.Option<string>;
         readonly apiKey: Option.Option<Redacted.Redacted<string>>;
+        readonly provider: Provider;
     }
 >()("@ogit/Config") {
-    static layer = (overrides: { model?: string }) =>
+    static layer = (overrides: { model?: string; provider?: Provider }) =>
         Layer.effect(
             OgitConfigService,
             Effect.gen(function* () {
@@ -50,7 +51,10 @@ export class OgitConfigService extends Context.Service<
                     : OgitConfig.make({});
 
                 // 4. CLI flag overrides
-                const cliConfig = overrides.model ? OgitConfig.make({ model: overrides.model }) : OgitConfig.make({});
+                const cliOverrides: { model?: string; provider?: Provider } = {};
+                if (overrides.model) cliOverrides.model = overrides.model;
+                if (overrides.provider) cliOverrides.provider = overrides.provider;
+                const cliConfig = OgitConfig.make(cliOverrides);
 
                 // 5. Merge: global < local < env < cli
                 const merged = mergeConfigs(
@@ -65,6 +69,7 @@ export class OgitConfigService extends Context.Service<
                     commitSystemPrompt: Option.fromNullishOr(merged.commit?.["system-prompt"]),
                     model: Option.fromNullishOr(merged.model),
                     apiKey: Option.fromNullishOr(merged["api-key"]),
+                    provider: merged.provider ?? "anthropic",
                 });
             }),
         );

@@ -1,13 +1,13 @@
-import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
-import { Config, Console, Effect, FileSystem, Layer, Option } from "effect";
-import { Command, Prompt } from "effect/unstable/cli";
-import envPaths from "env-paths";
+import { Console, Effect, FileSystem, Layer, Option } from "effect";
+import { Command, Flag, Prompt } from "effect/unstable/cli";
 
 import { BranchNameSuggestion } from "../domain/BranchNameSuggestion.ts";
-import { ConfigSetupError, WorktreeError } from "../domain/errors.ts";
+import { WorktreeError } from "../domain/errors.ts";
+import { Provider } from "../domain/OgitConfig.ts";
 import { parseStatus } from "../domain/parseStatus.ts";
 import { sanitizeBranchName } from "../domain/sanitizeBranchName.ts";
 import { Git } from "../services/Git.ts";
+import { languageModelLayer } from "../services/LanguageModelProvider.ts";
 import { OgitAi, retryOnRateLimit } from "../services/OgitAi.ts";
 import { OgitConfigService } from "../services/OgitConfig.ts";
 
@@ -48,201 +48,185 @@ const ensureWorktreesDir = Effect.fn("ensureWorktreesDir")(function* (repoRoot: 
     return worktreesDir;
 });
 
-const create = Command.make("create", {}, () =>
-    Effect.gen(function* () {
-        const git = yield* Git;
-        const repoRoot = yield* git.repoRoot();
-        const worktreesDir = yield* ensureWorktreesDir(repoRoot);
+const create = Command.make(
+    "create",
+    {
+        provider: Flag.choice("provider", Provider.literals).pipe(
+            Flag.optional,
+            Flag.withDescription("LLM provider (anthropic API key, or claude-code subscription)"),
+        ),
+    },
+    (flags) =>
+        Effect.gen(function* () {
+            const git = yield* Git;
+            const repoRoot = yield* git.repoRoot();
+            const worktreesDir = yield* ensureWorktreesDir(repoRoot);
 
-        // Check if working tree is clean
-        const status = yield* git.status();
-        const files = parseStatus(status);
-        const isClean = files.length === 0;
+            // Check if working tree is clean
+            const status = yield* git.status();
+            const files = parseStatus(status);
+            const isClean = files.length === 0;
 
-        let branchName = "";
+            let branchName = "";
 
-        if (isClean) {
-            // Clean path: just ask for a branch name
-            branchName = yield* Prompt.text({ message: "Branch name:" });
-        } else {
-            // Dirty path: capture diff, stash, suggest name
+            if (isClean) {
+                // Clean path: just ask for a branch name
+                branchName = yield* Prompt.text({ message: "Branch name:" });
+            } else {
+                // Dirty path: capture diff, stash, suggest name
 
-            // Capture untracked files for intent-to-add
-            const untrackedFiles = status
-                .split("\n")
-                .filter((line) => line.startsWith("??"))
-                .map((line) => line.slice(3));
+                // Capture untracked files for intent-to-add
+                const untrackedFiles = status
+                    .split("\n")
+                    .filter((line) => line.startsWith("??"))
+                    .map((line) => line.slice(3));
 
-            // Intent-to-add untracked files so they appear in diff
-            if (untrackedFiles.length > 0) {
-                yield* git.intentToAdd(untrackedFiles);
-            }
-
-            // Capture full diff (staged + unstaged + newly tracked)
-            const diff = yield* git.diffAll();
-
-            // Undo intent-to-add
-            if (untrackedFiles.length > 0) {
-                yield* git.resetFiles(untrackedFiles);
-            }
-
-            // Get AI suggestion (before stashing, so Ctrl+C leaves working tree intact)
-            const ogitAi = yield* OgitAi;
-            const chat = yield* ogitAi
-                .createBranchNameChat(diff)
-                .pipe(
-                    Effect.catchTag("OgitAiError", (error) =>
-                        Effect.fail(
-                            new WorktreeError({
-                                reason: "ai-failed-changes-restored",
-                                message: `AI suggestion failed: ${error.message}`,
-                            }),
-                        ),
-                    ),
-                );
-
-            let prompt: Array<{ role: "user"; content: string }> = [];
-            let result = yield* retryOnRateLimit(
-                chat.generateObject({ objectName: "branch_name_suggestion", prompt, schema: BranchNameSuggestion }),
-            );
-
-            yield* Console.log(`\nSuggested: ${result.value.name}`);
-            yield* Console.log(`Reason: ${result.value.reasoning}\n`);
-
-            // Action loop: let user accept, edit, regenerate, or cancel
-            let chosen = false;
-            while (!chosen) {
-                const action: WorktreeAction = yield* worktreeActionMenu;
-
-                if (action === "accept") {
-                    branchName = result.value.name;
-                    chosen = true;
-                } else if (action === "edit") {
-                    branchName = yield* Prompt.text({ message: "Branch name:", default: result.value.name });
-                    chosen = true;
-                } else if (action === "regenerate") {
-                    prompt = [{ role: "user", content: "Please try a different branch name." }];
-                    yield* Console.log("Generating branch name...");
-                    result = yield* retryOnRateLimit(
-                        chat.generateObject({
-                            objectName: "branch_name_suggestion",
-                            prompt,
-                            schema: BranchNameSuggestion,
-                        }),
-                    );
-                    yield* Console.log(`\nSuggested: ${result.value.name}`);
-                    yield* Console.log(`Reason: ${result.value.reasoning}\n`);
-                } else if (action === "regenerate_with_feedback") {
-                    const feedback = yield* Prompt.text({ message: "What should be different?" });
-                    prompt = [{ role: "user", content: feedback }];
-                    yield* Console.log("Generating branch name...");
-                    result = yield* retryOnRateLimit(
-                        chat.generateObject({
-                            objectName: "branch_name_suggestion",
-                            prompt,
-                            schema: BranchNameSuggestion,
-                        }),
-                    );
-                    yield* Console.log(`\nSuggested: ${result.value.name}`);
-                    yield* Console.log(`Reason: ${result.value.reasoning}\n`);
-                } else {
-                    yield* Console.log("Cancelled.");
-                    return;
+                // Intent-to-add untracked files so they appear in diff
+                if (untrackedFiles.length > 0) {
+                    yield* git.intentToAdd(untrackedFiles);
                 }
+
+                // Capture full diff (staged + unstaged + newly tracked)
+                const diff = yield* git.diffAll();
+
+                // Undo intent-to-add
+                if (untrackedFiles.length > 0) {
+                    yield* git.resetFiles(untrackedFiles);
+                }
+
+                // Get AI suggestion (before stashing, so Ctrl+C leaves working tree intact)
+                const ogitAi = yield* OgitAi;
+                const chat = yield* ogitAi
+                    .createBranchNameChat(diff)
+                    .pipe(
+                        Effect.catchTag("OgitAiError", (error) =>
+                            Effect.fail(
+                                new WorktreeError({
+                                    reason: "ai-failed-changes-restored",
+                                    message: `AI suggestion failed: ${error.message}`,
+                                }),
+                            ),
+                        ),
+                    );
+
+                let prompt: Array<{ role: "user"; content: string }> = [];
+                let result = yield* retryOnRateLimit(
+                    chat.generateObject({ objectName: "branch_name_suggestion", prompt, schema: BranchNameSuggestion }),
+                );
+
+                yield* Console.log(`\nSuggested: ${result.value.name}`);
+                yield* Console.log(`Reason: ${result.value.reasoning}\n`);
+
+                // Action loop: let user accept, edit, regenerate, or cancel
+                let chosen = false;
+                while (!chosen) {
+                    const action: WorktreeAction = yield* worktreeActionMenu;
+
+                    if (action === "accept") {
+                        branchName = result.value.name;
+                        chosen = true;
+                    } else if (action === "edit") {
+                        branchName = yield* Prompt.text({ message: "Branch name:", default: result.value.name });
+                        chosen = true;
+                    } else if (action === "regenerate") {
+                        prompt = [{ role: "user", content: "Please try a different branch name." }];
+                        yield* Console.log("Generating branch name...");
+                        result = yield* retryOnRateLimit(
+                            chat.generateObject({
+                                objectName: "branch_name_suggestion",
+                                prompt,
+                                schema: BranchNameSuggestion,
+                            }),
+                        );
+                        yield* Console.log(`\nSuggested: ${result.value.name}`);
+                        yield* Console.log(`Reason: ${result.value.reasoning}\n`);
+                    } else if (action === "regenerate_with_feedback") {
+                        const feedback = yield* Prompt.text({ message: "What should be different?" });
+                        prompt = [{ role: "user", content: feedback }];
+                        yield* Console.log("Generating branch name...");
+                        result = yield* retryOnRateLimit(
+                            chat.generateObject({
+                                objectName: "branch_name_suggestion",
+                                prompt,
+                                schema: BranchNameSuggestion,
+                            }),
+                        );
+                        yield* Console.log(`\nSuggested: ${result.value.name}`);
+                        yield* Console.log(`Reason: ${result.value.reasoning}\n`);
+                    } else {
+                        yield* Console.log("Cancelled.");
+                        return;
+                    }
+                }
+
+                // Stash after user confirms (so Ctrl+C during prompt doesn't lose changes)
+                yield* git
+                    .stash()
+                    .pipe(
+                        Effect.mapError(
+                            () => new WorktreeError({ reason: "stash-failed", message: "Failed to stash changes." }),
+                        ),
+                    );
             }
 
-            // Stash after user confirms (so Ctrl+C during prompt doesn't lose changes)
+            // Sanitize and create worktree
+            const dirName = sanitizeBranchName(branchName);
+            const worktreePath = `${worktreesDir}/${dirName}`;
+
             yield* git
-                .stash()
-                .pipe(
-                    Effect.mapError(
-                        () => new WorktreeError({ reason: "stash-failed", message: "Failed to stash changes." }),
-                    ),
-                );
-        }
-
-        // Sanitize and create worktree
-        const dirName = sanitizeBranchName(branchName);
-        const worktreePath = `${worktreesDir}/${dirName}`;
-
-        yield* git
-            .worktreeAdd(worktreePath, branchName)
-            .pipe(
-                Effect.mapError(
-                    () =>
-                        new WorktreeError({
-                            reason: "worktree-create-failed",
-                            message: `Failed to create worktree at ${worktreePath}`,
-                        }),
-                ),
-            );
-
-        // If dirty, pop stash into the new worktree
-        if (!isClean) {
-            yield* git
-                .stashPopIn(worktreePath)
+                .worktreeAdd(worktreePath, branchName)
                 .pipe(
                     Effect.mapError(
                         () =>
                             new WorktreeError({
-                                reason: "stash-pop-failed",
-                                message: `Worktree created at ${worktreePath} but stash pop failed. Run 'git -C ${worktreePath} stash pop' manually to resolve.`,
+                                reason: "worktree-create-failed",
+                                message: `Failed to create worktree at ${worktreePath}`,
                             }),
                     ),
                 );
-        }
 
-        yield* Console.log(`\nWorktree created at ${worktreePath} on branch ${branchName}`);
-    }).pipe(
-        Effect.provide(
-            Layer.mergeAll(
-                OgitAi.layer,
-                Layer.unwrap(
-                    Effect.gen(function* () {
-                        const ogitConfig = yield* OgitConfigService;
-                        const model = Option.getOrElse(ogitConfig.model, () => "claude-haiku-4-5");
-                        return AnthropicLanguageModel.model(model);
-                    }),
-                ),
-            ).pipe(
-                Layer.provide(
-                    Layer.unwrap(
-                        Effect.gen(function* () {
-                            const ogitConfig = yield* OgitConfigService;
-                            const envApiKey = yield* Config.option(Config.redacted("OGIT_API_KEY"));
+            // If dirty, pop stash into the new worktree
+            if (!isClean) {
+                yield* git
+                    .stashPopIn(worktreePath)
+                    .pipe(
+                        Effect.mapError(
+                            () =>
+                                new WorktreeError({
+                                    reason: "stash-pop-failed",
+                                    message: `Worktree created at ${worktreePath} but stash pop failed. Run 'git -C ${worktreePath} stash pop' manually to resolve.`,
+                                }),
+                        ),
+                    );
+            }
 
-                            const apiKey = Option.orElse(envApiKey, () => ogitConfig.apiKey);
-                            if (Option.isNone(apiKey)) {
-                                return yield* new ConfigSetupError({
-                                    reason: "missing_api_key",
-                                    message: "No API key found",
-                                    globalConfigPath: `${envPaths("ogit", { suffix: "" }).config}/config.kdl`,
-                                });
-                            }
-
-                            return AnthropicClient.layerConfig({ apiKey: Config.succeed(apiKey.value) });
-                        }),
+            yield* Console.log(`\nWorktree created at ${worktreePath} on branch ${branchName}`);
+        }).pipe(
+            Effect.provide(
+                Layer.mergeAll(OgitAi.layer, languageModelLayer).pipe(
+                    Layer.provideMerge(
+                        OgitConfigService.layer(
+                            Option.match(flags.provider, { onNone: () => ({}), onSome: (provider) => ({ provider }) }),
+                        ),
                     ),
                 ),
-                Layer.provideMerge(OgitConfigService.layer({})),
             ),
+            Effect.catchTag("WorktreeError", (error) => Console.error(error.message)),
+            Effect.catchTag("GitError", (error) => Console.error(error.message)),
+            Effect.catchTag("ConfigSetupError", (error) => {
+                if (error.reason === "missing_api_key") {
+                    return Console.error(
+                        "Missing API key. Set it using one of:\n" +
+                            '  - Environment variable: export OGIT_API_KEY="your-key"\n' +
+                            `  - Global config: add api-key "your-key" to ${error.globalConfigPath}\n` +
+                            '  - Local config: add api-key "your-key" to .ogit.kdl in your repo',
+                    );
+                }
+                return Console.error(`Configuration error: ${error.message}`);
+            }),
+            Effect.catchTag("ConfigError", () => Console.error("Configuration error. Check your ogit config files.")),
+            Effect.catchTag("PlatformError", (error) => Console.error(`File system error: ${error.message}`)),
         ),
-        Effect.catchTag("WorktreeError", (error) => Console.error(error.message)),
-        Effect.catchTag("GitError", (error) => Console.error(error.message)),
-        Effect.catchTag("ConfigSetupError", (error) => {
-            if (error.reason === "missing_api_key") {
-                return Console.error(
-                    "Missing API key. Set it using one of:\n" +
-                        '  - Environment variable: export OGIT_API_KEY="your-key"\n' +
-                        `  - Global config: add api-key "your-key" to ${error.globalConfigPath}\n` +
-                        '  - Local config: add api-key "your-key" to .ogit.kdl in your repo',
-                );
-            }
-            return Console.error(`Configuration error: ${error.message}`);
-        }),
-        Effect.catchTag("ConfigError", () => Console.error("Configuration error. Check your ogit config files.")),
-        Effect.catchTag("PlatformError", (error) => Console.error(`File system error: ${error.message}`)),
-    ),
 ).pipe(Command.withDescription("Create a new worktree with a branch"));
 
 export const worktree = Command.make("worktree").pipe(
