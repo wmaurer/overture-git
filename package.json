@@ -1,6 +1,6 @@
 {
     "name": "@wmaurer/overture-git",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "AI-powered git workflow tools — generate conventional commit messages and create worktrees with smart branch names using Claude",
     "keywords": [
         "ai",
