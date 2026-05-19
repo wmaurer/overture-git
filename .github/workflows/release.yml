@@ -1,0 +1,40 @@
+name: release
+
+on:
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: pnpm/action-setup@v6
+              with:
+                  version: 10
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: "24"
+                  cache: "pnpm"
+                  registry-url: "https://registry.npmjs.org"
+
+            - run: pnpm install --frozen-lockfile
+
+            - run: pnpm fmt:check
+
+            - run: pnpm lint
+
+            - run: pnpm typecheck
+
+            - run: pnpm test
+
+            - run: pnpm build
+
+            - name: publish to npm
+              run: pnpm publish --no-git-checks
